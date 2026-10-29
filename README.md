@@ -31,3 +31,10 @@ npm test
 ```
 
 Parte de **TAOS**, un sistema de 4 apps personales para organizar tu vida. Herramienta de organización personal: no es asesoría médica, financiera ni legal.
+
+## Soporte y modificaciones
+
+- El soporte de TAOS cubre **la versión original** de esta app, instalada siguiendo la guía.
+- Si cambias el código (tú, otra persona o una IA), la app lo detecta al publicarse y muestra el aviso **“versión modificada”**. Puede dejar de funcionar como se diseñó y ya no tiene soporte.
+- Para instalar o arreglar un error de configuración **no necesitas cambiar código**: casi siempre es una variable en Vercel o el SQL de Supabase.
+- Tus datos viven en tus propias cuentas (Supabase, Vercel y Google). Nadie más puede verlos.
