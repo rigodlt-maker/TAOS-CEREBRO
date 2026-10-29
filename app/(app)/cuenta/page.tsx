@@ -2,8 +2,10 @@ import { ChevronRight, FolderSync } from "lucide-react";
 import Link from "next/link";
 import { AvisosPush } from "@/components/avisos-push";
 import { FormularioContrasena } from "@/components/contrasena";
+import { BotonAccion } from "@/components/formulario";
 import { Titulo } from "@/components/taos/encabezado";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
+import { releerDocumentos } from "@/lib/acciones";
 import { correoActual } from "@/lib/sesion";
 
 export default async function Cuenta() {
@@ -19,6 +21,15 @@ export default async function Cuenta() {
         </span>
         <ChevronRight className="size-5 text-muted-foreground" />
       </Link>
+      <Card>
+        <CardTitle className="mb-1">Volver a leer mis documentos</CardTitle>
+        <CardDescription className="mb-4">
+          Tao aprendió a leer mejor fechas, teléfonos y montos. Toca para mejorar las fichas de lo que ya subiste; lo que corregiste a mano no se toca.
+        </CardDescription>
+        <BotonAccion accion={releerDocumentos} variant="outline" size="default">
+          Volver a leer
+        </BotonAccion>
+      </Card>
       <Card>
         <CardTitle className="mb-1">Notificaciones en el celular</CardTitle>
         <CardDescription className="mb-4">

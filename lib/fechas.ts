@@ -15,6 +15,8 @@ const PATRONES = [
   new RegExp(`\\b(\\d{1,2})[/\\-.]${MES}[/\\-.](\\d{2,4})\\b`, "gi"),
   /\b(\d{4})-(\d{2})-(\d{2})\b/g,
   /\b(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})\b/g,
+  // Recibos: "30 SEP 26"
+  new RegExp(`\\b(\\d{1,2})\\s+${MES}\\.?\\s+(\\d{2})\\b`, "gi"),
 ];
 
 export type FechaEncontrada = { fecha: string; inicio: number; fin: number };

@@ -1,7 +1,6 @@
 "use client";
 
-import { ArrowUp, Loader2, Sparkles, X } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { ArrowUp, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Markdown } from "./markdown";
@@ -96,59 +95,5 @@ export function Chat({ autoFocus = false, compacto = false }: { autoFocus?: bool
         </Button>
       </form>
     </div>
-  );
-}
-
-// Botón "Tao" del encabezado (y la tecla "/" en computadora): abre el chat desde cualquier pantalla
-export function BotonPreguntar() {
-  const [abierto, setAbierto] = useState(false);
-  const ruta = usePathname();
-
-  useEffect(() => {
-    const tecla = (e: KeyboardEvent) => {
-      const escribiendo = (e.target as HTMLElement)?.closest("input, textarea, select, [contenteditable]");
-      if (e.key === "Escape") setAbierto(false);
-      else if (!escribiendo && (e.key === "/" || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k"))) {
-        e.preventDefault();
-        setAbierto(true);
-      }
-    };
-    window.addEventListener("keydown", tecla);
-    return () => window.removeEventListener("keydown", tecla);
-  }, []);
-
-  return (
-    <>
-      {/* En Inicio el chat ya está a la vista */}
-      {ruta !== "/" && (
-        <button
-          type="button"
-          onClick={() => setAbierto(true)}
-          className="flex min-h-11 items-center gap-2 rounded-full border px-4 text-sm font-medium text-primary active:scale-95"
-        >
-          <Sparkles className="size-5" />
-          Tao
-        </button>
-      )}
-      {abierto && (
-        <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/60" onClick={() => setAbierto(false)}>
-          <div
-            role="dialog"
-            aria-label="Pregúntale a Tao"
-            className="w-full max-w-2xl rounded-t-3xl border bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-muted-foreground/40" />
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Pregúntale a Tao</h2>
-              <Button variant="ghost" size="icon" onClick={() => setAbierto(false)} aria-label="Cerrar">
-                <X className="size-5" />
-              </Button>
-            </div>
-            <Chat autoFocus compacto />
-          </div>
-        </div>
-      )}
-    </>
   );
 }

@@ -25,6 +25,13 @@ const PALABRAS_CATEGORIA: [Categoria, RegExp][] = [
   ["Notas personales", /\b(notas? personales?)\b/],
 ];
 
+// Documentos de otra categoría que también responden a una categoría
+const RELACIONADOS: Partial<Record<Categoria, RegExp>> = {
+  Vehículos: /auto|vehicul|automovil/,
+  Salud: /gastos medicos|medic|hospital/,
+  Hogar: /hogar|casa|vivienda|renta/,
+};
+
 // Solo palabras genéricas ("mi seguro" → cualquier documento de Seguros); "pasaporte" no debe encontrar tu INE
 const GENERICAS_CATEGORIA: [Categoria, RegExp][] = [
   ["Seguros", /^(seguros?|polizas?)$/],
@@ -66,9 +73,12 @@ export function buscarPorNombre(p: string, docs: Documento[]): Documento[] {
   if (!palabras.length) return [];
   const puntos = docs
     .map((d) => {
-      const texto = limpio([d.nombre, d.tipo_documento ?? "", d.categoria, d.ficha?.partes ?? "", d.ficha?.condiciones_clave.join(" ") ?? ""].join(" "));
+      const titulo = limpio([d.nombre, d.tipo_documento ?? "", d.categoria].join(" "));
+      const dentro = limpio([d.ficha?.partes ?? "", d.ficha?.condiciones_clave.join(" ") ?? ""].join(" "));
       const enCategoria = GENERICAS_CATEGORIA.find(([c]) => c === d.categoria)?.[1];
-      const n = palabras.filter((w) => new RegExp(`\\b${w.slice(0, Math.max(3, w.length - 1))}`).test(texto) || (enCategoria?.test(w) ?? false)).length;
+      const esta = (texto: string, w: string) => new RegExp(`\\b${w.slice(0, Math.max(3, w.length - 1))}`).test(texto);
+      // El nombre y el tipo pesan el doble que lo que dice por dentro ("licencia" no debe traer la póliza que menciona licencias)
+      const n = palabras.reduce((t, w) => t + (esta(titulo, w) || (enCategoria?.test(w) ?? false) ? 2 : esta(dentro, w) ? 1 : 0), 0);
       return { d, n };
     })
     .filter((x) => x.n > 0)
@@ -132,10 +142,11 @@ export function conversar(pregunta: string, todos: Documento[], notas: Nota[], h
 
   // Listados: "¿qué documentos tengo?", "mis seguros", "¿qué tengo del auto?", "documentos de salud"
   const categoria = PALABRAS_CATEGORIA.find(([, r]) => r.test(p))?.[0];
-  const pideLista = /\b((que|cuales) \w+ tengo|que (documentos|archivos|papeles|tengo)|cuales (documentos|tengo|son)|cuantos|mis (documentos|archivos|papeles|seguros|polizas|contratos|identificaciones)|lista\w*|todos (mis|los)|documentos (de|del|que)|tengo (de|del|algo de))\b/.test(p);
-  if (pideLista && !/\b(vence|vencen|cuando|cuanto|telefono|numero|quien|cubre)\b/.test(p)) {
+  const pideLista = /\b((que|cuales) \w+ tengo|que (documentos|archivos|papeles|tengo)|cuales (documentos|tengo|son)|cuantos (documentos|archivos|papeles)|mis (documentos|archivos|papeles|seguros|polizas|contratos|identificaciones)|lista\w*|todos (mis|los)|documentos (de|del|que)|tengo (de|del|algo de))\b/.test(p);
+  if (pideLista && !/\b(vence|vencen|cuando|cuanto|cuantos? \w+ (gaste|pague|debo)|telefono|numero|quien|cubre)\b/.test(p)) {
     if (categoria) {
-      const deEsa = docs.filter((d) => d.categoria === categoria);
+      // También los de otra categoría que tratan de lo mismo (la póliza del auto cuenta como "del carro")
+      const deEsa = docs.filter((d) => d.categoria === categoria || RELACIONADOS[categoria]?.test(plano(d.tipo_documento ?? "")));
       if (!deEsa.length) return { texto: `No tienes documentos de **${categoria}** todavía. [Subir uno](/subir)`, citas: [] };
       return listar(`Tus documentos de **${categoria}** (${deEsa.length}):`, deEsa, hoy);
     }

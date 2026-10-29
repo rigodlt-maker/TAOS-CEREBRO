@@ -33,9 +33,9 @@ const CASOS: [string, RegExp][] = [
   ["lista de mis documentos", /Tienes \*\*7 documentos\*\*:/],
   ["mis seguros", /Seguros\*\* \(2\)/],
   ["que polizas tengo", /Seguros\*\* \(2\)/],
-  ["¿qué tengo del carro?", /Vehículos\*\* \(1\)/],
+  ["¿qué tengo del carro?", /Vehículos\*\* \(2\)/], // la tarjeta de circulación y la póliza del auto
   ["documentos de identidad", /Identidad y trámites\*\* \(3\)/],
-  ["documentos de salud", /No tienes documentos de \*\*Salud/],
+  ["documentos de salud", /Salud\*\* \(1\)[\s\S]*Póliza GMM/], // la póliza de gastos médicos cuenta como salud
   ["¿qué ya venció?", /Pasaporte\.pdf/],
   ["que documentos estan vencidos", /ya vencieron \(1\)/],
   ["¿qué subí últimamente?", /Lo último que subiste:\n\n- \[Calendario propedéutico MESS/],

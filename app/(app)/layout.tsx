@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { configuracionPendiente } from "@/lib/configuracion";
-import { BotonPreguntar } from "@/components/chat";
+import { Chat } from "@/components/chat";
 import { Navegacion } from "@/components/navegacion";
 import { Encabezado } from "@/components/taos/encabezado";
+import { BotonTao } from "@/components/taos/tao";
 import { obtenerRepo } from "@/lib/sesion";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,14 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
   const repo = await obtenerRepo();
   return (
     <div className="mx-auto max-w-2xl px-4 pb-[calc(10rem+env(safe-area-inset-bottom))]">
-      <Encabezado nombre="Segundo Cerebro" derecha={<BotonPreguntar />} />
+      <Encabezado
+        nombre="Segundo Cerebro"
+        derecha={
+          <BotonTao>
+            <Chat />
+          </BotonTao>
+        }
+      />
       {repo.modo === "demo" && !process.env.OCULTAR_AVISO_DEMO && (
         <p className="mb-4 rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
           <strong className="text-foreground">Modo demostración:</strong> estás viendo 3 documentos de ejemplo.

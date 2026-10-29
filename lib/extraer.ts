@@ -50,6 +50,7 @@ const REGLAS: Regla[] = [
   { patron: /infonavit|fovissste/, categoria: "Finanzas e impuestos", tipo: "Precalificación de crédito" },
   { patron: /certificado de vacunacion|comprobante de vacunacion|vacuna/, categoria: "Salud", tipo: "Comprobante de vacunación" },
   { patron: /informe medico|nota medica|resumen clinico|historia clinica/, categoria: "Salud", tipo: "Informe médico" },
+  { patron: /\breceta\b|paciente.{0,300}(diagnostico|\d+ ?mg\b|tabletas?|capsulas?)|proxima cita/, categoria: "Salud", tipo: "Receta médica" },
   { patron: /condiciones generales/, categoria: "Seguros", tipo: "Condiciones generales del seguro" },
   { patron: /calendario (de actividades|escolar|academico)/, categoria: "Identidad y trámites", tipo: "Calendario de actividades" },
   { patron: /tarjeta de circulacion/, categoria: "Vehículos", tipo: "Tarjeta de circulación" },
@@ -131,13 +132,29 @@ function fechas(texto: string, p: string, condiciones: string[]) {
       }
     }
   }
+  // "VIGENCIA 2024 - 2034" (INE): vale hasta el último día de ese año
+  if (!fin) {
+    const anos = p.match(/vigencia\s*:?\s*(\d{4})\s*(?:-|–|a|al)\s*(\d{4})\b/);
+    if (anos) fin = `${anos[2]}-12-31`;
+  }
+  // "VIGENCIA: 10/02/2027" (licencias, tarjetas de circulación): una sola fecha justo después
+  if (!fin) {
+    for (const m of p.matchAll(/vigencia\s*:?/g)) {
+      const desde = (m.index ?? 0) + m[0].length;
+      const una = buscarFechas(texto.slice(desde, desde + 30));
+      if (una.length === 1) {
+        fin = una[0].fecha;
+        break;
+      }
+    }
+  }
   // Garantía por meses o años desde la compra: el vencimiento se calcula con datos del propio documento
   if (inicio && !fin) {
-    const g = p.match(/garantia (de|por) (\d{1,2}) (mes|meses|ano|anos)/);
+    const g = p.match(/garantia\s*(?:de|por|:)?\s*(\d{1,2}) (mes|meses|ano|anos)/);
     if (g) {
-      const meses = +g[2] * (g[3].startsWith("a") ? 12 : 1);
+      const meses = +g[1] * (g[2].startsWith("a") ? 12 : 1);
       fin = sumarMeses(inicio, meses);
-      condiciones.push(`Garantía de ${g[2]} ${g[3].replace("an", "añ")} desde el ${inicio} (vencimiento calculado).`);
+      condiciones.push(`Garantía de ${g[1]} ${g[2].replace("an", "añ")} desde el ${inicio} (vencimiento calculado).`);
     }
   }
   if (inicio && fin && fin < inicio) [inicio, fin] = [fin, inicio];
@@ -157,7 +174,12 @@ function referencia(texto: string, p: string): string | null {
 }
 
 const ETIQUETAS_MONTO: [RegExp, string][] = [
-  [/prima total|importe total a pagar|total a pagar/, "Prima total"],
+  [/prima total/, "Prima total"],
+  [/importe total a pagar|total a pagar/, "Total a pagar"],
+  [/pago para no generar intereses/, "Pago para no generar intereses"],
+  [/pago minimo/, "Pago mínimo"],
+  [/limite de credito/, "Límite de crédito"],
+  [/saldo (al corte|actual|total)/, "Saldo"],
   [/prima neta/, "Prima neta"],
   [/suma asegurada/, "Suma asegurada"],
   [/deducible/, "Deducible"],
@@ -184,7 +206,7 @@ function montos(texto: string, p: string): Record<string, number> {
         break;
       }
     }
-    if (Object.keys(salida).length >= 6) break;
+    if (Object.keys(salida).length >= 8) break;
   }
   return salida;
 }
@@ -201,9 +223,21 @@ const ETIQUETAS_PARTES: [RegExp, string][] = [
 ];
 const ASEGURADORAS = ["qualitas", "gnp", "axa", "mapfre", "chubb", "hdi", "zurich", "metlife", "allianz", "banorte", "inbursa", "seguros atlas", "ana seguros", "afirme", "sura", "bupa", "seguros monterrey", "plan seguro", "potosi"];
 
+// "…el Sr. Carlos Ramírez, en lo sucesivo EL ARRENDADOR": el nombre está justo antes de la etiqueta
+function nombreAntesDe(texto: string, p: string, rol: string): string | null {
+  const m = p.match(new RegExp(`,?\\s*(?:en lo sucesivo|a quien se (?:le )?denominara|que en (?:lo sucesivo|adelante) se (?:le )?denominara)?\\s*(?:como )?(?:el|la) ${rol}\\b`));
+  if (!m || m.index === undefined) return null;
+  const antes = texto.slice(Math.max(0, m.index - 90), m.index).replace(/[,\s]+$/, "");
+  const nombre = antes.match(/((?:[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+|[A-ZÁÉÍÓÚÑ]{2,})(?:\s+(?:de\s+(?:la\s+)?)?(?:[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+|[A-ZÁÉÍÓÚÑ]{2,})){1,4})$/);
+  return nombre && !/^(Por|Parte|Otra|Una|Sr|Sra)$/i.test(nombre[1]) ? nombre[1] : null;
+}
+
 function partes(texto: string, p: string): string | null {
   const encontradas: string[] = [];
+  const porRol: Record<string, string | null> = { Arrendador: nombreAntesDe(texto, p, "arrendador"), Arrendatario: nombreAntesDe(texto, p, "arrendatario") };
+  for (const [rol, valor] of Object.entries(porRol)) if (valor) encontradas.push(`${rol}: ${enmascarar(valor)}`);
   for (const [etiqueta, nombre] of ETIQUETAS_PARTES) {
+    if (porRol[nombre]) continue;
     const m = p.match(etiqueta);
     if (!m) continue;
     const desde = (m.index ?? 0) + m[0].length;
@@ -227,7 +261,7 @@ function contacto(texto: string, p: string): string | null {
     const antes = p.slice(Math.max(0, (m.index ?? 0) - 50), m.index);
     const digitos = m[0].replace(/\D/g, "");
     // Solo números que el documento presenta como teléfono
-    if ((/tel|llam|marca|cabina|siniestro|atencion|whats|lada|contacto|cel/.test(antes) || digitos.startsWith("800")) && !telefonos.includes(m[0].trim())) {
+    if ((/tel|llam|marca|cabina|siniestro|atencion|whats|lada|contacto|cel|comuni|consultorio|oficina|servicio|al numero/.test(antes) || digitos.startsWith("800")) && !telefonos.includes(m[0].trim())) {
       telefonos.push(m[0].trim());
     }
   }

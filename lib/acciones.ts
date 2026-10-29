@@ -5,6 +5,7 @@ import { BUCKET } from "./datos/supabase";
 import { queMeFalta, type Sugerencia } from "./faltantes";
 import { camposVacios } from "./extraer";
 import { procesarTexto } from "./procesar";
+import { releer } from "./releer";
 import { obtenerRepo } from "./sesion";
 import { clienteServidor } from "./supabase/servidor";
 import { CATEGORIAS, type Categoria, type Ficha, type Pagina, type Resultado } from "./tipos";
@@ -151,6 +152,26 @@ export async function borrarFueraDeDrive(): Promise<Resultado> {
     for (const d of sueltos) await repo.borrarDocumento(d.id);
     revalidatePath("/", "layout");
     return { ok: true, mensaje: `Listo: borré ${sueltos.length} documentos.` };
+  } catch (e) {
+    return { ok: false, mensaje: (e as Error).message };
+  }
+}
+
+// Vuelve a leer tus documentos con las reglas nuevas: rellena fechas, teléfonos y montos que faltaban
+export async function releerDocumentos(): Promise<Resultado> {
+  try {
+    const repo = await obtenerRepo();
+    const docs = (await repo.documentos()).filter((d) => d.estado_procesamiento === "listo");
+    const paginas = await repo.paginasDe(docs.map((d) => d.id));
+    let cambiados = 0;
+    for (const d of docs) {
+      const cambio = releer(d, paginas[d.id] ?? []);
+      if (!cambio) continue;
+      await repo.actualizarFicha(d.id, { categoria: cambio.categoria, tipo_documento: cambio.tipo_documento, nombre: d.nombre }, cambio.ficha);
+      cambiados++;
+    }
+    revalidatePath("/", "layout");
+    return { ok: true, mensaje: cambiados ? `Listo: mejoré la ficha de ${cambiados} de ${docs.length} documentos.` : `Revisé ${docs.length} documentos: ya estaban al día.` };
   } catch (e) {
     return { ok: false, mensaje: (e as Error).message };
   }
