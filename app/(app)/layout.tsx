@@ -14,7 +14,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
   return (
     <div className="mx-auto max-w-2xl px-4 pb-[calc(10rem+env(safe-area-inset-bottom))]">
       <Encabezado nombre="Segundo Cerebro" derecha={<BotonPreguntar />} />
-      {repo.modo === "demo" && (
+      {repo.modo === "demo" && !process.env.OCULTAR_AVISO_DEMO && (
         <p className="mb-4 rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
           <strong className="text-foreground">Modo demostración:</strong> estás viendo 3 documentos de ejemplo.
         </p>
