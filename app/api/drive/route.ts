@@ -1,5 +1,5 @@
 import { revalidatePath } from "next/cache";
-import { repoDelDueno } from "@/lib/cron";
+import { mismaClave, repoDelDueno } from "@/lib/cron";
 import { guardarContenido, sincronizarLista, type ArchivoDrive, type ContenidoDrive } from "@/lib/drive";
 import { claveDrive } from "@/lib/script-drive";
 
@@ -9,7 +9,7 @@ export const maxDuration = 60;
 // El script de Drive manda "Authorization: Bearer <clave>"
 function autorizado(req: Request) {
   const clave = claveDrive();
-  return !!clave && clave.length >= 12 && req.headers.get("authorization") === `Bearer ${clave}`;
+  return !!clave && clave.length >= 12 && mismaClave(req.headers.get("authorization"), `Bearer ${clave}`);
 }
 
 const archivo = (a: Partial<ArchivoDrive> | undefined): ArchivoDrive | null =>
