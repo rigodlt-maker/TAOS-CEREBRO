@@ -4,7 +4,7 @@ Tus documentos en un solo lugar: pólizas, identificaciones y contratos con busc
 
 ## Instalar
 
-[![Instalar en Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Frigodlt-maker%2Ftaos-cerebro&project-name=segundo-cerebro&repository-name=segundo-cerebro&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,SUPABASE_SECRET_KEY,ALLOWED_EMAIL,CRON_SECRET&envDescription=Datos%20de%20tu%20proyecto%20de%20Supabase%2C%20tu%20correo%20y%20un%20texto%20al%20azar%20para%20los%20avisos)
+[![Instalar en Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Frigodlt-maker%2Ftaos-cerebro&project-name=segundo-cerebro&repository-name=segundo-cerebro&env=CODIGO_COMPRA,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,SUPABASE_SECRET_KEY,ALLOWED_EMAIL,CRON_SECRET&envDescription=Tu%20c%C3%B3digo%20de%20compra%20de%20Hotmart%20%28HP...%29%2C%20datos%20de%20tu%20proyecto%20de%20Supabase%2C%20tu%20correo%20y%20un%20texto%20al%20azar%20para%20los%20avisos)
 
 1. Toca el botón y entra con GitHub.
 2. Pega las variables (abajo) y toca **Deploy**.
@@ -14,6 +14,7 @@ Tus documentos en un solo lugar: pólizas, identificaciones y contratos con busc
 
 | Variable | Qué pegar |
 | --- | --- |
+| `CODIGO_COMPRA` | Tu código de compra de Hotmart (empieza con `HP`; viene en el correo de tu compra) |
 | `NEXT_PUBLIC_SUPABASE_URL` | URL de tu proyecto de Supabase, solo hasta `.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key (`sb_publishable_…`) |
 | `SUPABASE_SECRET_KEY` | Secret key (`sb_secret_…`) |
