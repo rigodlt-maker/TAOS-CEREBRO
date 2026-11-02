@@ -1,6 +1,7 @@
 // Responder preguntas sin IA: busca en tus documentos y contesta con el dato exacto y su origen.
 // Solo usa lo que dicen los documentos; si no está, lo dice y sugiere qué subir.
 import { enmascarar } from "./enmascarar";
+import { conOpciones } from "./opciones";
 import { plano } from "./extraer";
 import { buscarFechas, enCuanto, fechaLarga } from "./fechas";
 import type { Cita, Documento, Fragmento, Nota, Pagina } from "./tipos";
@@ -92,7 +93,11 @@ function sugerirQueSubir(p: string): string {
     [/sat|rfc|impuesto|factura/, "tu constancia de situación fiscal o la factura"],
   ];
   const cual = mapa.find(([r]) => r.test(p))?.[1] ?? "el documento que tenga ese dato";
-  return `No encontré eso en tus documentos.\n\nTe sugiero subir ${cual} para poder contestarte.`;
+  return conOpciones(`No encontré eso en tus documentos.\n\nTe sugiero subir ${cual} para poder contestarte. ¿O buscabas otra cosa?`, [
+    "¿Qué documentos tengo?",
+    "¿Qué vence pronto?",
+    "¿Qué me falta?",
+  ]);
 }
 
 export function responder(d: Datos): Respuesta {
@@ -213,10 +218,17 @@ export function responder(d: Datos): Respuesta {
   }
   const doc = docs.find((x) => x.id === mejor.documento_id) ?? docs[0];
   const frase = mejor.tipo === "fragmento" ? fraseRelevante(mejor.contenido, consultaDe(d.pregunta), tituloDe(doc)) : null;
-  return {
-    texto: `${frase ?? (mejor.tipo === "fragmento" ? recorte(mejor.contenido, tema) : `Encontré esto en ${doc.tipo_documento?.toLowerCase() ?? "un documento"}.`)}\n\nFuente: ${enlaceDoc(doc, mejor.pagina)}`,
-    citas: [{ documento_id: doc.id, nombre: doc.nombre, pagina: mejor.pagina }],
-  };
+  const encontrado = `${frase ?? (mejor.tipo === "fragmento" ? recorte(mejor.contenido, tema) : `Encontré esto en ${doc.tipo_documento?.toLowerCase() ?? "un documento"}.`)}\n\nFuente: ${enlaceDoc(doc, mejor.pagina)}`;
+  const citas = [{ documento_id: doc.id, nombre: doc.nombre, pagina: mejor.pagina }];
+  // Si ningún documento trata de lo que preguntas (solo coincidió alguna palabra suelta), mejor preguntar que adivinar
+  if (tema && docs.every((x) => relevancia(x, tema) === 0)) {
+    const otros = docs.slice(0, 2).map((x) => `Pásame ${x.nombre.replace(/\.(pdf|jpe?g|png|heic|docx?)$/i, "")}`);
+    return {
+      texto: conOpciones(`No estoy seguro de qué buscas. 🤔 Lo más cercano que encontré:\n\n${encontrado}\n\n¿Te refieres a alguna de estas?`, [...otros, "¿Qué documentos tengo?"]),
+      citas,
+    };
+  }
+  return { texto: encontrado, citas };
 }
 
 // Raíz de una palabra para comparar sin importar terminaciones ("mascotas" ~ "mascota", "renta" ~ "rentas")

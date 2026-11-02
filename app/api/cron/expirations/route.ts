@@ -4,6 +4,7 @@ import { cronAutorizado, repoDelDueno } from "@/lib/cron";
 import { enCuanto, fechaLarga, hoyEnMexico } from "@/lib/fechas";
 import { avisosDeVencimiento, enviarPush } from "@/lib/push";
 import type { Documento } from "@/lib/tipos";
+import { evaluar, resumen } from "@/lib/mis-documentos";
 import { accionSugerida, avisosPendientes, vencenEn } from "@/lib/vencimientos";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +45,18 @@ ${enlace(doc)}<br><span style="color:#52525b">Qué hacer: ${escapar(accionSugeri
       : "Nada de tus documentos vence en los próximos 60 días. 🎉";
     await enviarCorreo("📅 Lo que vence en los próximos 60 días", plantilla("Resumen del mes", [bloque], app));
     enviados.push(`resumen: ${proximos.length}`);
+  }
+  // Los días 1 y 15: si te faltan documentos básicos, un recordatorio amable (sin repetirlo a diario)
+  if (hoy.endsWith("-01") || hoy.endsWith("-15") || prueba) {
+    const [todos, notas, marcas] = await Promise.all([repo.documentos(), repo.notas(), repo.marcasDocumentos()]);
+    const faltan = resumen(evaluar(todos, notas, marcas)).basicosFaltan;
+    if (faltan.length) {
+      const nombres = faltan.slice(0, 3).map((i) => i.nombre).join(", ");
+      const push = await enviarPush(repo, [
+        { titulo: `🗂️ Te ${faltan.length === 1 ? "falta 1 documento básico" : `faltan ${faltan.length} documentos básicos`}`, cuerpo: `${nombres}. Toca para ver cómo conseguirlos.`, url: "/mis-documentos", etiqueta: "faltantes" },
+      ]);
+      enviados.push(`faltantes: ${faltan.length} (push ${push.enviados})`);
+    }
   }
   return NextResponse.json({ ok: true, hoy, enviados });
 }

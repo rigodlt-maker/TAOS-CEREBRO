@@ -3,7 +3,8 @@
 import { ArrowUp, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Markdown } from "./markdown";
+import { Microfono } from "./taos/microfono";
+import { RespuestaTao } from "./taos/respuesta-tao";
 import { Button } from "./ui/button";
 
 type Mensaje = { pregunta: string; respuesta: string; listo: boolean };
@@ -67,7 +68,11 @@ export function Chat({ autoFocus = false, compacto = false }: { autoFocus?: bool
             <div key={i} className="grid gap-2">
               <p className="justify-self-end rounded-2xl rounded-br-sm bg-primary px-3 py-2 text-sm text-primary-foreground">{m.pregunta}</p>
               <div className="rounded-2xl rounded-bl-sm border bg-card px-3 py-2 text-sm">
-                {m.respuesta ? <Markdown texto={m.respuesta} /> : <Loader2 className="size-4 animate-spin text-muted-foreground" />}
+                {m.respuesta ? (
+                  <RespuestaTao texto={m.respuesta} onOpcion={i === mensajes.length - 1 && m.listo && !ocupado ? enviar : undefined} />
+                ) : (
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                )}
               </div>
             </div>
           ))}
@@ -90,6 +95,7 @@ export function Chat({ autoFocus = false, compacto = false }: { autoFocus?: bool
           aria-label="Tu pregunta"
           className="h-12 w-full rounded-full border bg-card px-5 text-base focus-visible:outline-2 focus-visible:outline-primary"
         />
+        <Microfono onTexto={enviar} onParcial={setTexto} />
         <Button type="submit" size="icon" className="size-12 shrink-0 rounded-full" disabled={ocupado || !texto.trim()} aria-label="Preguntar">
           {ocupado ? <Loader2 className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
         </Button>

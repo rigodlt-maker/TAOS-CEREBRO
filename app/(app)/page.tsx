@@ -3,13 +3,15 @@ import { Chat } from "@/components/chat";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Vencimiento } from "@/components/vencimiento";
 import { hoyEnMexico } from "@/lib/fechas";
+import { evaluar, resumen } from "@/lib/mis-documentos";
 import { obtenerRepo } from "@/lib/sesion";
 import { vencenEn } from "@/lib/vencimientos";
 
 export default async function Inicio() {
   const repo = await obtenerRepo();
   const hoy = hoyEnMexico();
-  const docs = await repo.documentos();
+  const [docs, notas, marcas] = await Promise.all([repo.documentos(), repo.notas(), repo.marcasDocumentos()]);
+  const lista = resumen(evaluar(docs, notas, marcas));
   const vencidos = docs.filter((d) => d.ficha?.fecha_vencimiento && d.ficha.fecha_vencimiento < hoy);
   const proximos = [...vencidos, ...vencenEn(docs, hoy, 60)].slice(0, 3);
 
@@ -46,6 +48,18 @@ export default async function Inicio() {
           <CardDescription>Nada vence en los próximos 60 días.</CardDescription>
         )}
       </Card>
+      <Link href="/mis-documentos" className="block rounded-2xl border bg-card p-4 active:bg-muted">
+        <span className="flex items-baseline justify-between">
+          <span className="font-semibold">Mis documentos</span>
+          <span className="text-sm text-primary">
+            {lista.listos} de {lista.total} listos →
+          </span>
+        </span>
+        <span className="mt-2 block h-2 overflow-hidden rounded-full bg-muted">
+          <span className="block h-full rounded-full bg-primary" style={{ width: `${lista.total ? Math.round((lista.listos / lista.total) * 100) : 0}%` }} />
+        </span>
+        {lista.basicosFaltan.length > 0 && <span className="mt-2 block text-sm text-muted-foreground">Te faltan básicos: {lista.basicosFaltan.map((i) => i.nombre).join(", ")}</span>}
+      </Link>
       <p className="text-center text-sm text-muted-foreground">{docs.length} documentos en tu archivo</p>
     </div>
   );

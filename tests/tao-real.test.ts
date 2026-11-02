@@ -50,6 +50,11 @@ const CASOS: [string, RegExp][] = [
   ["¿qué documentos de salud tengo?", /Salud\*\* \(2\)[\s\S]*Receta/],
   ["¿dónde está mi licencia?", /^Aquí está: \[Licencia de conducir/],
   ["¿cuál es la contraseña del wifi?", /^> La contraseña del wifi está en el router\./],
+  ["¿Cómo me llamo?", /nombre completo\*\* es \*\*Juan Pérez Ejemplo/],
+  ["¿cuándo nací?", /1 de enero de 1990 \(\d+ años\)/],
+  ["¿cuál es mi domicilio?", /Av Ejemplo 123 Col Centro/],
+  ["¿cuánto cuesta un unicornio?", /\[\[opciones: /],
+  ["¿cuándo corta mi tarjeta Plata?", /Plata\*\* corta el día \*\*20\*\*[\s\S]*límite de pago es el día \*\*10/],
 ];
 
 for (const [p, esperado] of CASOS) test(`Tao responde: "${p}"`, async () => assert.match(await r(p), esperado));

@@ -1,6 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Documento, DocumentoDrive, Ficha, Fragmento, Nota, Pagina, Pregunta, SuscripcionPush } from "../tipos";
-import type { Repo } from "./repo";
+import type { Repo, TarjetaAdministrador } from "./repo";
+import type { Marca } from "../mis-documentos";
+
+// La tabla todavía no existe: falta correr el SQL nuevo (se avisa en la pantalla, sin romper la app)
+const faltaTabla = (m: string) => /does not exist|schema cache|relation/i.test(m);
 
 export const BUCKET = "documentos";
 
@@ -171,6 +175,25 @@ export function repoSupabase(db: SupabaseClient, usuario: string): Repo {
     },
     async borrarSuscripcionPush(endpoint) {
       revisar(await db.from("push_subscriptions").delete().eq("endpoint", endpoint).eq("user_id", usuario));
+    },
+    async marcasDocumentos() {
+      const r = await db.from("document_checklist").select("clave, estado").eq("user_id", usuario);
+      if (r.error) {
+        if (faltaTabla(r.error.message)) return {};
+        throw new Error(r.error.message);
+      }
+      return Object.fromEntries((r.data ?? []).map((f) => [f.clave, f.estado as Marca]));
+    },
+    async marcarDocumento(clave, marca) {
+      const r = marca
+        ? await db.from("document_checklist").upsert({ user_id: usuario, clave, estado: marca, updated_at: new Date().toISOString() })
+        : await db.from("document_checklist").delete().eq("user_id", usuario).eq("clave", clave);
+      if (r.error) throw new Error(faltaTabla(r.error.message) ? "Falta actualizar tu base de datos: entra a Cuenta › Configurar base de datos y corre el SQL." : r.error.message);
+    },
+    async tarjetasAdministrador() {
+      // Si no instalaste Administrador Tao en este Supabase, la tabla no existe y simplemente no hay tarjetas
+      const r = await db.from("accounts").select("nombre, dia_corte, dia_limite_pago").eq("user_id", usuario).eq("tipo", "credito");
+      return r.error ? [] : ((r.data ?? []) as TarjetaAdministrador[]);
     },
   };
 }

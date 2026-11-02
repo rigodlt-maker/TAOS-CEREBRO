@@ -64,6 +64,10 @@ export async function repoDePrueba(): Promise<Repo & { historial: { pregunta: st
     async guardarPregunta(pregunta: string, respuesta: string, citas: Cita[]) {
       historial.push({ pregunta, respuesta, citas });
     },
+    // Tarjetas inventadas de Administrador Tao (mismo Supabase)
+    async tarjetasAdministrador() {
+      return [{ nombre: "Plata", dia_corte: 20, dia_limite_pago: 10 }];
+    },
   } as unknown as Repo & { historial: typeof historial };
 
   for (const d of DOCUMENTOS_EJEMPLO) {

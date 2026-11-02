@@ -113,8 +113,11 @@ export function conversar(pregunta: string, todos: Documento[], notas: Nota[], h
   // "¿Qué me falta?"
   if (/\b(que (documentos )?me falta\w*|me faltan|que (documentos )?(debo|deberia|tengo que|me conviene) (subir|tener|guardar)|que falta)\b/.test(p)) {
     const s = queMeFalta(docs, notas);
-    if (!s.length) return { texto: "Tienes todos los documentos básicos. 🎉", citas: [] };
-    return { texto: `Te sugiero subir:\n\n${s.slice(0, 8).map((x) => `- **${x.documento}**: ${x.porque.toLowerCase()}`).join("\n")}\n\n[Subir ahora](/subir)`, citas: [] };
+    if (!s.length) return { texto: "Tienes todos los documentos básicos. 🎉\n\nRevisa la lista completa en [Mis documentos](/mis-documentos).", citas: [] };
+    return {
+      texto: `Te sugiero subir:\n\n${s.slice(0, 8).map((x) => `- **${x.documento}**: ${x.porque.toLowerCase()}`).join("\n")}\n\n[Subir ahora](/subir) · [Ver Mis documentos](/mis-documentos), con guías para tramitar lo que no tengas.`,
+      citas: [],
+    };
   }
 
   // "¿Qué ya venció?"

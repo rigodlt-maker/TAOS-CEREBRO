@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { BUCKET } from "./datos/supabase";
 import { queMeFalta, type Sugerencia } from "./faltantes";
+import { TODOS, type Marca } from "./mis-documentos";
 import { camposVacios } from "./extraer";
 import { procesarTexto } from "./procesar";
 import { releer } from "./releer";
@@ -172,6 +173,20 @@ export async function releerDocumentos(): Promise<Resultado> {
     }
     revalidatePath("/", "layout");
     return { ok: true, mensaje: cambiados ? `Listo: mejoré la ficha de ${cambiados} de ${docs.length} documentos.` : `Revisé ${docs.length} documentos: ya estaban al día.` };
+  } catch (e) {
+    return { ok: false, mensaje: (e as Error).message };
+  }
+}
+
+// Mis documentos: "Lo tengo en papel", "No aplica", "No cuento con él" o quitar la marca
+export async function marcarDocumentoAccion(clave: string, marca: Marca | null): Promise<Resultado> {
+  if (!TODOS.some((i) => i.clave === clave)) return { ok: false, mensaje: "Documento desconocido" };
+  if (marca !== null && !["tengo", "no_aplica", "no_tengo"].includes(marca)) return { ok: false, mensaje: "Marca desconocida" };
+  try {
+    await (await obtenerRepo()).marcarDocumento(clave, marca);
+    revalidatePath("/mis-documentos");
+    revalidatePath("/");
+    return { ok: true, mensaje: "Listo" };
   } catch (e) {
     return { ok: false, mensaje: (e as Error).message };
   }

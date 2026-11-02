@@ -1,5 +1,6 @@
 // Tus datos de identificación sacados de tus propios documentos: "¿cuál es mi RFC?", "mi CURP", "mi NSS", "número de pasaporte"
 import { plano } from "./extraer";
+import { fechaLarga, hoyEnMexico } from "./fechas";
 import type { Documento, Pagina } from "./tipos";
 
 type Dato = {
@@ -12,7 +13,94 @@ type Dato = {
 
 const primero = (re: RegExp) => (t: string) => t.match(re)?.[1] ?? null;
 
+const LETRAS = "A-ZÁÉÍÓÚÜÑ";
+const ETIQUETAS = /\b(RFC|CURP|DOMICILIO|NO|FECHA|TARIFA|SEXO|CLAVE|EDAD|NACIONALIDAD|NUM|NUMERO|LUGAR|CODIGO|C\.P)\b.*$/;
+const PARTICULAS = new Set(["DE", "DEL", "LA", "LAS", "LOS", "Y", "VAN", "VON", "DA", "DI", "SAN"]);
+
+// "PÉREZ" → "Pérez", "DE LA TORRE" → "De La Torre"
+const bonito = (t: string) => t.toLowerCase().replace(/(^|\s)(\p{L})/gu, (_, e, l) => e + l.toUpperCase());
+
+// Une "DE LA TORRE" en un solo apellido para no confundirlo con un nombre
+function unidades(palabras: string[]): string[] {
+  const out: string[] = [];
+  let pendiente: string[] = [];
+  for (const w of palabras) {
+    pendiente.push(w);
+    if (!PARTICULAS.has(w)) {
+      out.push(pendiente.join(" "));
+      pendiente = [];
+    }
+  }
+  if (pendiente.length) out.push(pendiente.join(" "));
+  return out;
+}
+
+// Nombre completo: acta/CURP ("NOMBRE(S): … PRIMER APELLIDO: …"), "NOMBRE: JUAN PÉREZ" o la INE ("NOMBRE PÉREZ EJEMPLO JUAN DOMICILIO")
+export function nombreCompleto(t: string): string | null {
+  const palabra = `[${LETRAS}]+`;
+  const varias = `${palabra}(?:[ \\t]${palabra}){0,4}`;
+  const corta = `${palabra}(?:[ \\t]${palabra}){0,4}?`;
+  const acta = t.match(new RegExp(`NOMBRE(?:\\(S\\)|S)?\\s*:?\\s*(${corta})\\s+PRIMER APELLIDO\\s*:?\\s*(${corta})(?:\\s+SEGUNDO APELLIDO\\s*:?\\s*(${varias}))?(?![ \\t]?[${LETRAS}])`));
+  if (acta) return bonito([acta[1], acta[2], acta[3]].filter(Boolean).join(" "));
+  const ine = t.match(new RegExp(`NOMBRE\\s+((?:${palabra}\\s+){2,8}?)DOMICILIO`));
+  if (ine) {
+    const u = unidades(ine[1].trim().split(/\s+/));
+    if (u.length >= 3) return bonito([...u.slice(2), u[0], u[1]].join(" "));
+  }
+  const etiqueta = t.match(new RegExp(`NOMBRE(?:\\(S\\))?\\s*:\\s*(${palabra}(?:[ \\t]${palabra}){1,5})`));
+  if (etiqueta) {
+    const limpio = etiqueta[1].replace(ETIQUETAS, "").trim();
+    if (limpio.split(" ").length >= 2) return bonito(limpio);
+  }
+  return null;
+}
+
+// Fecha de nacimiento escrita en el documento o, si no, la que viene dentro de la CURP
+export function fechaNacimiento(t: string): string | null {
+  const escrita = t.match(/FECHA DE NACIMIENTO\s*:?\s*(\d{2})[/-](\d{2})[/-](\d{4})/);
+  if (escrita) return `${escrita[3]}-${escrita[2]}-${escrita[1]}`;
+  const curp = t.match(/\b[A-Z]{4}(\d{2})(\d{2})(\d{2})[HM][A-Z]{5}([A-Z0-9])\d\b/);
+  if (!curp) return null;
+  const siglo = /\d/.test(curp[4]) ? "19" : "20";
+  return `${siglo}${curp[1]}-${curp[2]}-${curp[3]}`;
+}
+
+export function edad(nacimiento: string, hoy: string): number {
+  const [a, m, d] = nacimiento.split("-").map(Number);
+  const [ha, hm, hd] = hoy.split("-").map(Number);
+  return ha - a - (hm < m || (hm === m && hd < d) ? 1 : 0);
+}
+
+function domicilio(t: string): string | null {
+  const m = t.match(/DOMICILIO\s*:?\s*([\s\S]{8,160}?)\s+(?:CLAVE DE ELECTOR|CURP|AÑO DE REGISTRO|FECHA|RFC|$)/);
+  return m ? bonito(m[1].replace(/\s+/g, " ").trim()) : null;
+}
+
 const DATOS: Dato[] = [
+  {
+    nombre: "nombre completo",
+    pide: /\bcomo me llamo\b|\bmi nombre\b|\bnombre completo\b|\bcomo me llaman\b/,
+    docs: /\bine\b|credencial|acta de nacimiento|\bcurp\b|pasaporte|licencia/,
+    sugerencia: "tu INE o tu acta de nacimiento",
+    extraer: nombreCompleto,
+  },
+  {
+    nombre: "fecha de nacimiento",
+    pide: /fecha de nacimiento|cuando naci|(mi )?cumple(anos)?\b|que edad tengo|cuantos anos tengo|mi edad/,
+    docs: /\bine\b|credencial|acta de nacimiento|\bcurp\b|pasaporte/,
+    sugerencia: "tu INE, tu CURP o tu acta de nacimiento",
+    extraer: (t) => {
+      const f = fechaNacimiento(t);
+      return f ? `${fechaLarga(f)} (${edad(f, hoyEnMexico())} años)` : null;
+    },
+  },
+  {
+    nombre: "domicilio",
+    pide: /\bmi (domicilio|direccion)\b|donde vivo/,
+    docs: /\bine\b|credencial|comprobante|domicilio|cfe|agua|predial/,
+    sugerencia: "tu INE o un comprobante de domicilio",
+    extraer: domicilio,
+  },
   {
     nombre: "RFC",
     pide: /\brfc\b|registro federal de contribuyentes/,
@@ -83,7 +171,7 @@ const DATOS: Dato[] = [
   },
 ];
 
-const PIDE_VALOR = /\b(cual|cuales|dame|dime|pasame|mi|mis|numero|necesito|copia|que)\b/;
+const PIDE_VALOR = /\b(cual|cuales|dame|dime|pasame|mi|mis|numero|necesito|copia|que|como|cuando|donde|cuantos)\b/;
 
 // null si la pregunta no es por uno de tus datos (o si es sobre su vigencia: eso lo contesta la ficha)
 export function datoPedido(pregunta: string): Dato | null {

@@ -1,3 +1,4 @@
+import type { Marca } from "../mis-documentos";
 import type { Categoria, Cita, Documento, Ficha, Fragmento, Nota, Pagina, Pregunta, DocumentoDrive, SuscripcionPush } from "../tipos";
 
 export type NuevoDocumento = { nombre: string; ruta_storage: string | null; tipo_archivo: string | null };
@@ -37,4 +38,11 @@ export interface Repo {
   suscripcionesPush(): Promise<SuscripcionPush[]>;
   guardarSuscripcionPush(s: Omit<SuscripcionPush, "id" | "created_at">): Promise<void>;
   borrarSuscripcionPush(endpoint: string): Promise<void>;
+  // Mis documentos: tus marcas de la lista (los subidos se detectan solos)
+  marcasDocumentos(): Promise<Record<string, Marca>>;
+  marcarDocumento(clave: string, marca: Marca | null): Promise<void>;
+  // Tarjetas de crédito que registraste en Administrador Tao (si está en el mismo Supabase); solo lectura
+  tarjetasAdministrador(): Promise<TarjetaAdministrador[]>;
 }
+
+export type TarjetaAdministrador = { nombre: string; dia_corte: number | null; dia_limite_pago: number | null };

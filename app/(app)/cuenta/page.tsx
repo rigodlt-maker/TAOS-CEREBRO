@@ -1,4 +1,4 @@
-import { ChevronRight, FolderSync } from "lucide-react";
+import { ChevronRight, ClipboardCheck, FolderSync } from "lucide-react";
 import Link from "next/link";
 import { AvisosPush } from "@/components/avisos-push";
 import { FormularioContrasena } from "@/components/contrasena";
@@ -13,6 +13,14 @@ export default async function Cuenta() {
   return (
     <div className="grid gap-4">
       <Titulo detalle={correo ?? undefined}>Cuenta</Titulo>
+      <Link href="/mis-documentos" className="flex min-h-18 items-center gap-4 rounded-2xl border bg-card px-4 py-3 active:bg-muted">
+        <ClipboardCheck className="size-6 shrink-0 text-primary" />
+        <span className="min-w-0 flex-1">
+          <span className="block font-medium">Mis documentos</span>
+          <span className="block truncate text-sm text-muted-foreground">Qué tienes, qué falta y cómo tramitarlo</span>
+        </span>
+        <ChevronRight className="size-5 text-muted-foreground" />
+      </Link>
       <Link href="/cuenta/drive" className="flex min-h-18 items-center gap-4 rounded-2xl border bg-card px-4 py-3 active:bg-muted">
         <FolderSync className="size-6 shrink-0 text-primary" />
         <span className="min-w-0 flex-1">

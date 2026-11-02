@@ -4,8 +4,9 @@ import { clasificar, extraerFicha, plano, trocear } from "../extraer";
 import { hoyEnMexico } from "../fechas";
 import type { Documento, Fragmento, Nota, Pagina, Pregunta, SuscripcionPush } from "../tipos";
 import type { Repo } from "./repo";
+import type { Marca } from "../mis-documentos";
 
-type Estado = { docs: Documento[]; paginas: Record<string, Pagina[]>; notas: Nota[]; preguntas: Pregunta[]; suscripciones?: SuscripcionPush[] };
+type Estado = { docs: Documento[]; paginas: Record<string, Pagina[]>; notas: Nota[]; preguntas: Pregunta[]; suscripciones?: SuscripcionPush[]; marcas?: Record<string, Marca> };
 
 const g = globalThis as unknown as { __cerebroDemo?: Estado };
 
@@ -145,6 +146,21 @@ export function repoMemoria(): Repo {
     },
     async borrarSuscripcionPush(endpoint) {
       e.suscripciones = (e.suscripciones ?? []).filter((x) => x.endpoint !== endpoint);
+    },
+    async marcasDocumentos() {
+      return { ...(e.marcas ??= {}) };
+    },
+    async marcarDocumento(clave, marca) {
+      e.marcas ??= {};
+      if (marca) e.marcas[clave] = marca;
+      else delete e.marcas[clave];
+    },
+    async tarjetasAdministrador() {
+      // Ejemplo para el modo demostración
+      return [
+        { nombre: "Nu", dia_corte: 12, dia_limite_pago: 2 },
+        { nombre: "Plata", dia_corte: 20, dia_limite_pago: 10 },
+      ];
     },
   };
 }

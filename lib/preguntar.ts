@@ -4,6 +4,7 @@ import { buscarPorNombre, comoFragmentos, conversar, limpio } from "./conversar"
 import { datoPedido, responderDato } from "./datos-personales";
 import { iaDisponible, responderConIA } from "./ia";
 import { analizarPregunta, recorte, responder } from "./responder";
+import { respuestaTarjetas } from "./tarjetas-administrador";
 import type { Cita } from "./tipos";
 
 // Busca, arma la respuesta (reglas o IA) y la entrega por partes (streaming). Al final la guarda en el historial.
@@ -18,6 +19,14 @@ export async function* preguntar(repo: Repo, pregunta: string): AsyncGenerator<s
     const r = responderDato(dato, listos, await repo.paginasDe(listos.map((d) => d.id)));
     for (const trozo of r.texto.match(/[\s\S]{1,24}/g) ?? []) yield trozo;
     await repo.guardarPregunta(pregunta, r.texto, r.citas);
+    return;
+  }
+
+  // "¿Cuándo corta mi Plata?": tus tarjetas de Administrador Tao
+  const tarjeta = respuestaTarjetas(pregunta, await repo.tarjetasAdministrador(), hoy);
+  if (tarjeta) {
+    for (const trozo of tarjeta.match(/[\s\S]{1,24}/g) ?? []) yield trozo;
+    await repo.guardarPregunta(pregunta, tarjeta, []);
     return;
   }
 
