@@ -1,6 +1,7 @@
 import { ChevronRight, ClipboardCheck, FolderSync } from "lucide-react";
 import Link from "next/link";
 import { AvisosPush } from "@/components/avisos-push";
+import { TamanoLetra } from "@/components/taos/tamano-letra";
 import { FormularioContrasena } from "@/components/contrasena";
 import { BotonAccion } from "@/components/formulario";
 import { Titulo } from "@/components/taos/encabezado";
@@ -44,6 +45,14 @@ export default async function Cuenta() {
           Avisos cuando se lee un documento nuevo de tu Drive y cuando algo está por vencer. Actívalas en cada celular o computadora donde las quieras.
         </CardDescription>
         <AvisosPush />
+      </Card>
+      <Card>
+        <CardTitle className="mb-1">Pantalla</CardTitle>
+        <CardDescription className="mb-4">Tamaño de la letra en este celular.</CardDescription>
+        <TamanoLetra />
+        <a href="/?recorrido=1" className="mt-3 flex min-h-11 items-center justify-center text-sm text-primary">
+          Ver el tutorial otra vez
+        </a>
       </Card>
       <Card>
         <CardTitle className="mb-1">Contraseña</CardTitle>

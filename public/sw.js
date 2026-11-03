@@ -4,6 +4,19 @@ self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (evento) => evento.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", () => {});
 
+// Bandeja de avisos (la campana 🔔 de la app): se guardan los últimos 30 en este celular, sin servidor
+const BANDEJA = "bandeja-avisos";
+async function guardarAviso(aviso) {
+  try {
+    const c = await caches.open(BANDEJA);
+    const r = await c.match("/__avisos");
+    const lista = r ? await r.json() : [];
+    lista.unshift({ titulo: aviso.titulo || "", cuerpo: aviso.cuerpo || "", url: aviso.url || "/", fecha: Date.now() });
+    await c.put("/__avisos", new Response(JSON.stringify(lista.slice(0, 30)), { headers: { "Content-Type": "application/json" } }));
+    for (const v of await self.clients.matchAll({ type: "window" })) v.postMessage({ tipo: "taos-aviso" });
+  } catch {}
+}
+
 // Llega un aviso del servidor: { titulo, cuerpo, url, etiqueta }
 self.addEventListener("push", (evento) => {
   let aviso = {};
@@ -12,6 +25,7 @@ self.addEventListener("push", (evento) => {
   } catch {
     aviso = { cuerpo: evento.data ? evento.data.text() : "" };
   }
+  evento.waitUntil(guardarAviso(aviso));
   evento.waitUntil(
     self.registration.showNotification(aviso.titulo || "Cerebro", {
       body: aviso.cuerpo || "",
