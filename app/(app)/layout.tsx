@@ -12,10 +12,11 @@ export const dynamic = "force-dynamic";
 
 // Recorrido de bienvenida (sale una sola vez)
 const RECORRIDO: Paso[] = [
-  { icono: "🧠", titulo: "Bienvenido a Segundo Cerebro", texto: "Tus papeles importantes, siempre a la mano. Sube un PDF o una foto con el botón Subir, o conecta tu Google Drive en Cuenta." },
-  { icono: "🎙️", titulo: "Pregunta como a un amigo", texto: "Toca Tao y pregunta o habla: “pásame mi INE”, “¿cuándo vence mi seguro?”, “¿cómo me llamo?”. Te da el dato y de dónde sale." },
-  { icono: "⏰", titulo: "Te aviso antes", texto: "En Vence ves lo que está por caducar. Activa las notificaciones en Cuenta y te aviso con tiempo." },
-  { icono: "✅", titulo: "Mis documentos", texto: "La lista de papeles que todo adulto necesita: qué tienes, qué falta y cómo tramitar lo que no tienes." },
+  { icono: "🧠", titulo: "Bienvenido a Segundo Cerebro", texto: "Tus papeles importantes, siempre a la mano. Te enseño lo básico en 1 minuto." },
+  { icono: "📤", titulo: "Sube tus papeles", texto: "Un PDF o una foto: la app lo lee, lo acomoda y guarda sus datos.", donde: "flotante" },
+  { icono: "🎙️", titulo: "Pregunta como a un amigo", texto: "“Pásame mi INE”, “¿cuándo vence mi seguro?”. Te da el dato y de dónde sale.", donde: "tao" },
+  { icono: "⏰", titulo: "Lo que vence", texto: "Lo que está por caducar, para renovarlo a tiempo.", donde: "/indice" },
+  { icono: "🔔", titulo: "Tu cuenta", texto: "Conecta Google Drive, revisa Mis documentos y activa los avisos.", donde: "/cuenta" },
 ];
 
 export default async function LayoutApp({ children }: { children: React.ReactNode }) {
