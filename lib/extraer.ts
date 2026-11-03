@@ -57,7 +57,7 @@ const REGLAS: Regla[] = [
   { patron: /verificacion vehicular|holograma|centro de verificacion/, categoria: "Vehículos", tipo: "Verificación vehicular" },
   { patron: /tenencia|refrendo vehicular|control vehicular/, categoria: "Vehículos", tipo: "Tenencia o refrendo" },
   { patron: /licencia de (conducir|manejo|chofer|automovilista)/, categoria: "Vehículos", tipo: "Licencia de conducir" },
-  { patron: /poliza de garantia|certificado de garantia|garantia (limitada|del producto|de fabrica)|tiempo de garantia/, categoria: "Hogar", tipo: "Garantía" },
+  { patron: /poliza de garantia|certificado de garantia|garantia (limitada|del producto|de fabrica|extendida)|tiempo de garantia|garantia\s*(de|por|:)?\s*\d{1,2} (mes|meses|ano|anos)/, categoria: "Hogar", tipo: "Garantía" },
   { patron: /poliza|aseguradora|suma asegurada|prima (neta|total)|condiciones generales del seguro/, categoria: "Seguros", tipo: tipoDePoliza },
   { patron: /factura/, categoria: "Vehículos", tipo: (t) => (/numero de (serie|motor)|\bvin\b|modelo \d{4}/.test(t) ? "Factura del auto" : "") },
   { patron: /contrato de (arrendamiento|renta)|arrendador|arrendatario/, categoria: "Contratos", tipo: "Contrato de renta" },
@@ -148,9 +148,11 @@ function fechas(texto: string, p: string, condiciones: string[]) {
       }
     }
   }
-  // Garantía por meses o años desde la compra: el vencimiento se calcula con datos del propio documento
+  // Garantía por meses o años desde la compra: el vencimiento se calcula con datos del propio documento.
+  // En un ticket de tienda no dice "fecha de compra": la fecha del ticket es la de compra.
+  const g = !fin ? p.match(/garantia\s*(?:extendida\s*)?(?:de|por|:)?\s*(\d{1,2}) (mes|meses|ano|anos)/) : null;
+  if (g && !inicio) inicio = buscarFechas(texto)[0]?.fecha ?? null;
   if (inicio && !fin) {
-    const g = p.match(/garantia\s*(?:de|por|:)?\s*(\d{1,2}) (mes|meses|ano|anos)/);
     if (g) {
       const meses = +g[1] * (g[2].startsWith("a") ? 12 : 1);
       fin = sumarMeses(inicio, meses);

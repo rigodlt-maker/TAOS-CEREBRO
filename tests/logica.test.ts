@@ -52,6 +52,12 @@ test("garantía: calcula el vencimiento desde la fecha de compra y lo indica", (
   assert.equal(f.numero_referencia, "•••• 8877");
 });
 
+test("ticket de tienda con garantía: la fecha del ticket es la de compra", () => {
+  const ticket = "TIENDA DEPARTAMENTAL EJEMPLO\nSUC. CENTRO 12/03/2026 18:42\nLAPTOP 14 PULGADAS 1 x $15,999.00\nGARANTIA 1 AÑO CON EL FABRICANTE\nTOTAL $15,999.00";
+  assert.deepEqual(clasificar(ticket, "IMG_2034.jpg"), { categoria: "Hogar", tipo_documento: "Garantía" });
+  assert.equal(extraerFicha([{ pagina: 1, contenido: ticket }]).fecha_vencimiento, "2027-03-12");
+});
+
 test("documento sin datos: todo queda como no especificado", () => {
   const f = extraerFicha([{ pagina: 1, contenido: "Lista del súper: leche, pan y huevos." }]);
   assert.equal(f.fecha_vencimiento, null);
