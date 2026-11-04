@@ -1,8 +1,8 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "fecha": "2026-11-04",
   "novedades": [
-    "Actualizaciones automáticas: tu app se pone al día sola cada noche, sin tocar tus datos.",
-    "Al actualizarse, aquí te contamos qué hay de nuevo."
+    "Sugerencias: cuéntanos tus ideas o si algo falla, directo desde la app (Menú/Ajustes › Enviar una sugerencia).",
+    "Actualizaciones automáticas: tu app se pone al día sola cada noche, sin tocar tus datos."
   ]
 }
