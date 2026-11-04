@@ -25,6 +25,15 @@ Tus documentos en un solo lugar: pólizas, identificaciones y contratos con busc
 | `RESEND_API_KEY` | (Opcional) Llave de resend.com para avisos por correo |
 | `RESEND_FROM` | (Opcional) Remitente de los correos |
 
+## Actualizaciones (automáticas)
+
+Tu app se pone al día **sola cada noche**: el botón **Actualizar TAOS** (pestaña *Actions* de este repositorio) trae la versión nueva y Vercel la publica. Si quieres tenerla al momento: *Actions › Actualizar TAOS › Run workflow*.
+
+- **Tus datos no se tocan**: viven en tu Supabase, no en este repositorio. Las actualizaciones solo agregan funciones.
+- Si una versión nueva necesita un lugar nuevo en tu base de datos, la app te muestra un aviso con un código para copiar y pegar (1 minuto). Solo agrega lo nuevo.
+- Al abrir la app después de una actualización verás **Novedades** con lo que cambió.
+- No edites `.github/workflows/actualizar.yml` ni los archivos de la app: si cambias el código, las actualizaciones lo reemplazan.
+
 ## Probar en tu computadora
 
 ```bash
