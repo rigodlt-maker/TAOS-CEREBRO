@@ -34,7 +34,7 @@ test("extrae la ficha de la póliza sin inventar nada", () => {
   assert.equal(f.numero_referencia, "•••• 2000");
   assert.match(f.contacto ?? "", /800 123 4567/);
   assert.ok(f.condiciones_clave.some((c) => /15 días naturales/.test(c)));
-  assert.ok(f.partes?.includes("Asegurado: Juan Pérez Ejemplo"));
+  assert.ok(f.partes?.includes("Asegurado: Rodrigo Martínez Solís"));
 });
 
 test("contrato de renta: renta, depósito, vigencia y sin número de referencia (no especificado)", () => {
@@ -97,9 +97,9 @@ test("responde el teléfono para reportar un choque", async () => {
 });
 
 test("si no está en los documentos, lo dice y sugiere qué subir", async () => {
-  const r = await pregunta("¿Cuándo vence mi pasaporte?");
+  const r = await pregunta("¿Cuándo vence mi cédula profesional?");
   assert.match(r, /No encontré eso en tus documentos/);
-  assert.match(r, /documento de identidad/);
+  assert.match(r, /Te sugiero subir/);
 });
 
 test("con dos pólizas de auto distintas, muestra ambas y pregunta cuál", () => {
@@ -131,5 +131,5 @@ test("¿Qué me falta? sugiere la tarjeta de circulación si hay póliza de auto
   const docs = await repoMemoria().documentos();
   const s = queMeFalta(docs).map((x) => x.documento);
   assert.ok(s.includes("Tarjeta de circulación"));
-  assert.ok(s.includes("INE"));
+  assert.ok(!s.includes("INE")); // la demo ya trae INE
 });

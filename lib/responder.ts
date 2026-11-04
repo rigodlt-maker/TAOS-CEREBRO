@@ -109,7 +109,7 @@ export function responder(d: Datos): Respuesta {
     const proximos = vencenEn(d.todos, d.hoy, 60);
     if (!proximos.length) return { texto: "Nada de tus documentos vence en los próximos 60 días. 🎉", citas: [] };
     return {
-      texto: `En los próximos 60 días vencen ${proximos.length === 1 ? "1 documento" : `${proximos.length} documentos`}:\n\n${proximos
+      texto: `En los próximos 60 días ${proximos.length === 1 ? "vence 1 documento" : `vencen ${proximos.length} documentos`}:\n\n${proximos
         .map((doc) => `- **${fechaLarga(doc.ficha!.fecha_vencimiento!)}** (${enCuanto(doc.ficha!.fecha_vencimiento!, d.hoy)}): ${enlaceDoc(doc)}`)
         .join("\n")}`,
       citas: proximos.map((doc) => ({ documento_id: doc.id, nombre: doc.nombre })),

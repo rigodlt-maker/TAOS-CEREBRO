@@ -1,4 +1,4 @@
-// Modo demostración: datos en memoria con los 3 documentos de ejemplo. Se usa cuando no hay Supabase.
+// Modo demostración: datos en memoria con los documentos de ejemplo. Se usa cuando no hay Supabase.
 import { ejemplos } from "../ejemplos";
 import { clasificar, extraerFicha, plano, trocear } from "../extraer";
 import { hoyEnMexico } from "../fechas";

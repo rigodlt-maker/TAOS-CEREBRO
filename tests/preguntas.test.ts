@@ -69,7 +69,7 @@ test("de punta a punta con los documentos de ejemplo", async () => {
   assert.match(await pregunta("cuando se acaba la poliza del coche"), /10 de enero de 2027/);
   assert.match(await pregunta("¿Cuánto pago de renta?"), /9,500/);
   assert.match(await pregunta("hasta cuando es la garantia del refri"), /garant/i);
-  assert.match(await pregunta("¿qué documentos tengo?"), /Tienes \*\*3 documentos\*\*/);
-  assert.match(await pregunta("hola"), /Tienes \*\*3 documentos\*\*/);
+  assert.match(await pregunta("¿qué documentos tengo?"), /Tienes \*\*8 documentos\*\*/);
+  assert.match(await pregunta("hola"), /Tienes \*\*8 documentos\*\*/);
   assert.match(await pregunta("pásame el contrato de renta"), /Aquí está/);
 });

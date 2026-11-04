@@ -43,7 +43,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
       />
       {repo.modo === "demo" && !process.env.OCULTAR_AVISO_DEMO && (
         <p className="mb-4 rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
-          <strong className="text-foreground">Modo demostración:</strong> estás viendo 3 documentos de ejemplo.
+          <strong className="text-foreground">Modo demostración:</strong> estás viendo documentos de ejemplo.
         </p>
       )}
       {bd.pendientes.length > 0 && (
