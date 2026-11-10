@@ -1,8 +1,8 @@
 {
-  "version": "1.2.0",
-  "fecha": "2026-11-04",
+  "version": "1.2.1",
+  "fecha": "2026-11-10",
   "novedades": [
-    "Sugerencias: cuéntanos tus ideas o si algo falla, directo desde la app (Menú/Ajustes › Enviar una sugerencia).",
-    "Actualizaciones automáticas: tu app se pone al día sola cada noche, sin tocar tus datos."
+    "Más seguridad: la primera vez, para crear tu contraseña te pedimos tu código de compra (el mismo que pusiste en Vercel).",
+    "TAOS funciona 100% con reglas gratis: se quitó la opción de IA de pago."
   ]
 }
