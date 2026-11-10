@@ -24,6 +24,7 @@ export interface Repo {
   enlaceExterno(id: string): Promise<string | null>;
   guardarProcesado(id: string, p: Procesado): Promise<void>;
   marcarError(id: string, error: string): Promise<void>;
+  marcarParcial(id: string, aviso: string): Promise<void>; // leído pero incompleto (S18): sigue "listo", con su aviso
   actualizarFicha(id: string, datos: { categoria: Categoria; tipo_documento: string; nombre: string }, ficha: Ficha): Promise<void>;
   borrarDocumento(id: string): Promise<void>;
   marcarAvisos(id: string, avisos: string[]): Promise<void>;

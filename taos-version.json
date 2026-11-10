@@ -5,8 +5,8 @@
     "Más seguridad: la primera vez, para crear tu contraseña te pedimos tu código de compra (el mismo que pusiste en Vercel).",
     "TAOS funciona 100% con reglas gratis: se quitó la opción de IA de pago.",
     "Google Drive: si la lista de tu carpeta llega incompleta, ya no se borra ningún documento; y lo que subiste a mano nunca se borra por Drive.",
-    "Dos documentos con el mismo nombre (por ejemplo dos INE) solo se unen si su contenido también es igual.",
-    "Los PDF muy grandes se leen con límites para no congelar el celular.",
-    "Detalles de pantalla: textos más claros, cifras con centavos, botones que dicen lo que hacen y gráficas más fáciles de leer."
+    "Dos documentos con el mismo nombre (por ejemplo dos INE) ya nunca se unen solos: si se parecen, la app te lo sugiere en el documento y tú decides si unirlos.",
+    "Detalles de pantalla: textos más claros, cifras con centavos, botones que dicen lo que hacen y gráficas más fáciles de leer.",
+    "PDF y fotos muy grandes: se revisa el tamaño antes de dibujarlos (ya no se puede pasar del tope) y, si no se pudo leer todo, el documento lo dice («Lectura parcial»)."
   ]
 }

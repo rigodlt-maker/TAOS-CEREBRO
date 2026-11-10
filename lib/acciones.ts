@@ -1,4 +1,5 @@
 "use server";
+import { unirDocumentos } from "./drive";
 
 import { revalidatePath } from "next/cache";
 import { BUCKET } from "./datos/supabase";
@@ -39,8 +40,11 @@ export async function prepararSubida(nombre: string, tipo: string): Promise<{ id
 }
 
 // 2) Con el texto ya leído en el navegador, extrae la ficha y guarda todo
-export async function procesarDocumento(id: string, nombre: string, paginas: Pagina[]): Promise<Resultado> {
-  const r = await procesarTexto(await obtenerRepo(), id, nombre, paginas);
+// parcial: si no se pudo leer todo (S18), se guarda el aviso junto al documento para que se vea en su ficha
+export async function procesarDocumento(id: string, nombre: string, paginas: Pagina[], parcial: string | null = null): Promise<Resultado> {
+  const repo = await obtenerRepo();
+  const r = await procesarTexto(repo, id, nombre, paginas.slice(0, 200).map((p) => ({ pagina: p.pagina, contenido: String(p.contenido).slice(0, 20_000) })));
+  if (r.ok && parcial) await repo.marcarParcial(id, `Lectura parcial: ${String(parcial).slice(0, 400)}`);
   revalidatePath("/", "layout");
   return { ok: r.ok, mensaje: r.mensaje } as Resultado;
 }
@@ -104,6 +108,17 @@ export async function borrarDocumento(id: string): Promise<Resultado> {
     await (await obtenerRepo()).borrarDocumento(id);
     revalidatePath("/", "layout");
     return { ok: true, mensaje: "Documento borrado" };
+  } catch (e) {
+    return { ok: false, mensaje: (e as Error).message };
+  }
+}
+
+// Tú confirmas que dos documentos son el mismo (S11: la app nunca los une sola)
+export async function unirDocumentosAccion(manualId: string, driveDocId: string): Promise<Resultado> {
+  try {
+    await unirDocumentos(await obtenerRepo(), manualId, driveDocId);
+    revalidatePath("/", "layout");
+    return { ok: true, mensaje: "Listo: quedaron como un solo documento." };
   } catch (e) {
     return { ok: false, mensaje: (e as Error).message };
   }

@@ -114,6 +114,9 @@ export function repoSupabase(db: SupabaseClient, usuario: string): Repo {
       revisar(await db.from("document_facts").upsert(fichaAFila(id, p.ficha), { onConflict: "document_id" }));
     },
 
+    async marcarParcial(id, aviso) {
+      revisar(await db.from("documents").update({ error_procesamiento: aviso.slice(0, 500) }).eq("user_id", usuario).eq("id", id));
+    },
     async marcarError(id, error) {
       revisar(await db.from("documents").update({ estado_procesamiento: "error", error_procesamiento: error.slice(0, 500) }).eq("user_id", usuario).eq("id", id));
     },

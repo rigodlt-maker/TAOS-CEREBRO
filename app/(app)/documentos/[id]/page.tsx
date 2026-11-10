@@ -5,7 +5,8 @@ import { BotonAccion, Desplegable, Formulario } from "@/components/formulario";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge, Input, Label, Select } from "@/components/ui/campos";
 import { Vencimiento } from "@/components/vencimiento";
-import { borrarDocumento, guardarFicha } from "@/lib/acciones";
+import { borrarDocumento, guardarFicha, unirDocumentosAccion } from "@/lib/acciones";
+import { posiblesIguales } from "@/lib/drive";
 import { enmascarar } from "@/lib/enmascarar";
 import { dinero } from "@/lib/formato";
 import { fechaLarga, hoyEnMexico } from "@/lib/fechas";
@@ -42,6 +43,8 @@ export default async function DetalleDocumento({ params, searchParams }: { param
       ].filter(([, v]) => v) as [string, string][])
     : [];
   const esImagen = doc.tipo_archivo?.startsWith("image/");
+  // S11: si hay otro con el mismo nombre y contenido parecido (uno subido a mano y otro de Drive), solo se sugiere
+  const parecidos = await posiblesIguales(repo, doc.id);
 
   return (
     <div className="grid gap-4">
@@ -55,6 +58,27 @@ export default async function DetalleDocumento({ params, searchParams }: { param
           {f?.fecha_vencimiento && <Vencimiento fecha={f.fecha_vencimiento} hoy={hoy} />}
         </div>
       </div>
+      {parecidos.map((o) => {
+        const manual = o.drive_id ? doc.id : o.id;
+        const deDrive = o.drive_id ? o.id : doc.id;
+        return (
+          <Card key={o.id} className="grid gap-2 border-primary/60">
+            <p className="font-medium">Podría ser el mismo documento que «{o.nombre}» {o.drive_id ? "de tu Google Drive" : "que subiste a mano"}.</p>
+            <CardDescription>Ábrelos y compáralos. Si son de personas o fechas distintas, no hagas nada: se quedan separados.</CardDescription>
+            <Link href={`/documentos/${o.id}`} className="flex min-h-11 items-center text-sm text-primary">
+              Ver el otro documento →
+            </Link>
+            <BotonAccion accion={unirDocumentosAccion.bind(null, manual, deDrive)} confirmar="¿Son el mismo documento? Se queda el que subiste a mano (con su ficha) y toma el enlace de Drive." variant="outline">
+              Sí, es el mismo: unirlos
+            </BotonAccion>
+          </Card>
+        );
+      })}
+      {doc.estado_procesamiento === "listo" && doc.error_procesamiento?.startsWith("Lectura parcial") && (
+        <p className="rounded-xl border border-primary/60 px-4 py-3 text-sm">
+          ⚠️ {doc.error_procesamiento} Si un dato no aparece aquí, puede estar en la parte que no se leyó: revísalo en el archivo.
+        </p>
+      )}
       {doc.estado_procesamiento === "error" && (
         <p className="rounded-xl border border-destructive px-4 py-3 text-sm text-destructive">No se pudo leer: {doc.error_procesamiento}</p>
       )}

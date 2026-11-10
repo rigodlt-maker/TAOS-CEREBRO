@@ -41,10 +41,10 @@ export function Subir() {
     }
 
     try {
-      const paginas = await leerArchivo(archivo, (paso) => actualizar(clave, { paso }));
+      const lectura = await leerArchivo(archivo, (paso) => actualizar(clave, { paso }));
       actualizar(clave, { paso: "Sacando los datos clave…" });
-      const r = await procesarDocumento(prep.id, archivo.name, paginas);
-      actualizar(clave, { paso: r.mensaje, fin: r.ok ? "ok" : "error" });
+      const r = await procesarDocumento(prep.id, archivo.name, lectura.paginas, lectura.motivo);
+      actualizar(clave, { paso: lectura.motivo ? `${r.mensaje} ⚠️ Lectura parcial: ${lectura.motivo}` : r.mensaje, fin: r.ok ? "ok" : "error" });
     } catch (e) {
       await marcarErrorDeLectura(prep.id, `No se pudo leer: ${(e as Error).message}`);
       actualizar(clave, { paso: `No se pudo leer el archivo: ${(e as Error).message}`, fin: "error" });

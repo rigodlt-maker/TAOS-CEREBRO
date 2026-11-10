@@ -48,7 +48,7 @@ const reintentar = (doc: DocumentoDrive) => doc.estado_procesamiento === "error"
 
 export type Plan = {
   pedir: string[]; // archivos de Drive que hay que leer (nuevos o cambiados)
-  vincular: { doc: DocumentoDrive; archivo: ArchivoDrive }[]; // documentos que ya subiste a mano y son el mismo archivo
+  vincular: { doc: DocumentoDrive; archivo: ArchivoDrive }[]; // solo candidatos: mismo nombre que algo subido a mano (nunca se unen solos, S11)
   borrar: DocumentoDrive[]; // vinieron de Drive y ya no están en la carpeta
   recategorizar: { doc: DocumentoDrive; archivo: ArchivoDrive }[];
 };
@@ -90,8 +90,7 @@ export async function sincronizarLista(repo: Repo, archivos: ArchivoDrive[], max
   const masivo = plan.borrar.length > 3 && plan.borrar.length > deDrive / 2;
   const bajasPausadas = !listaCompleta || masivo ? plan.borrar.length : 0;
   if (bajasPausadas) plan.borrar = [];
-  // Mismo nombre ya no basta para unir dos documentos (dos "INE.pdf" pueden ser de personas distintas, S11):
-  // se unen solo cuando llega el texto de Drive y se parece al que ya tenías (ver guardarContenido)
+  // Nada se une solo (S11): ni por nombre ni por parecido. Si se parecen, la app lo sugiere en el documento y tú decides.
   // Sin volver a leerlos: si cambió el nombre en Drive, o el nombre ya dice qué es y estaba mal clasificado, se corrige
   for (const { doc, archivo } of plan.recategorizar) {
     const nombre = nombreVisible(archivo.nombre);
@@ -106,7 +105,8 @@ export async function sincronizarLista(repo: Repo, archivos: ArchivoDrive[], max
     if (doc.ruta_storage) await repo.editarDocumento(doc.id, { drive_id: null, drive_actualizado: null, url_externa: null });
     else await repo.borrarDocumento(doc.id);
   }
-  return { pedir: plan.pedir.slice(0, maximo), pendientes: plan.pedir.length, vinculados: plan.vincular.length, borrados: plan.borrar.length, bajasPausadas };
+  // vinculados = uniones hechas de verdad (siempre 0 aquí); parecidos = mismo nombre que algo subido a mano, para revisar
+  return { pedir: plan.pedir.slice(0, maximo), pendientes: plan.pedir.length, vinculados: 0, parecidos: plan.vincular.length, borrados: plan.borrar.length, bajasPausadas };
 }
 
 // El texto de Drive no trae páginas: se parte en trozos de ~3,000 caracteres
@@ -127,8 +127,8 @@ export function paginar(texto: string, tamano = 3000): Pagina[] {
   return paginas.filter((p) => p.contenido);
 }
 
-// ¿Es el mismo documento? Las palabras (de 4 letras o más) deben coincidir en 80% o más y, si los dos traen números
-// (CURP, folios, fechas), también esos: dos INE tienen el mismo formato pero distintos datos. Si hay duda, no se unen.
+// ¿Se PARECEN? Palabras (4+ letras) en 80% o más y, si los dos traen números, también esos. Solo sirve para SUGERIR
+// "podría ser el mismo documento": dos INE comparten casi todo el formato aunque sean de personas distintas (S11).
 export function mismoContenido(a: string, b: string): boolean {
   const palabras = (t: string) => new Set(t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").match(/[a-z0-9]{4,}/g) ?? []);
   const parecido = (x: Set<string>, y: Set<string>) => {
@@ -142,19 +142,37 @@ export function mismoContenido(a: string, b: string): boolean {
   return !nx.size || !ny.size || parecido(nx, ny) >= 0.8;
 }
 
+// Documentos que podrían ser el mismo que `id` (mismo nombre y contenido parecido): uno subido a mano y otro de Drive.
+// Es solo una sugerencia que se muestra en el documento; nunca se aplica sola.
+export async function posiblesIguales(repo: Repo, id: string): Promise<DocumentoDrive[]> {
+  const docs = await repo.documentosDrive();
+  const doc = docs.find((d) => d.id === id);
+  if (!doc) return [];
+  const otros = docs.filter((d) => d.id !== id && !!d.drive_id !== !!doc.drive_id && clave(d.nombre) === clave(doc.nombre));
+  if (!otros.length) return [];
+  const paginas = await repo.paginasDe([id, ...otros.map((d) => d.id)]);
+  const texto = (x: string) => (paginas[x] ?? []).map((p) => p.contenido).join(" ");
+  return otros.filter((d) => mismoContenido(texto(id), texto(d.id)));
+}
+
+// Tú confirmaste que son el mismo: el subido a mano se queda (con su archivo y su ficha) y toma el enlace de Drive;
+// la copia que creó Drive se quita. Solo une un documento subido a mano con uno de Drive sin archivo propio.
+export async function unirDocumentos(repo: Repo, manualId: string, driveDocId: string): Promise<void> {
+  const docs = await repo.documentosDrive();
+  const manual = docs.find((d) => d.id === manualId);
+  const deDrive = docs.find((d) => d.id === driveDocId);
+  if (!manual || !deDrive || manual.drive_id || !deDrive.drive_id || deDrive.ruta_storage) throw new Error("Estos dos documentos no se pueden unir.");
+  const url = await repo.enlaceExterno(deDrive.id);
+  await repo.borrarDocumento(deDrive.id);
+  await repo.editarDocumento(manual.id, { drive_id: deDrive.drive_id, drive_actualizado: deDrive.drive_actualizado, url_externa: url });
+}
+
 // 2) El script manda el texto de un archivo (Google lo lee, incluso si es escaneado)
 export async function guardarContenido(repo: Repo, a: ContenidoDrive): Promise<string> {
   const docs = await repo.documentosDrive();
   let doc = docs.find((d) => d.drive_id === a.id);
   const nombre = nombreVisible(a.nombre);
-  // ¿Ya lo habías subido a mano? Solo se une si tiene el mismo nombre Y el mismo contenido
-  if (!doc) {
-    const sueltos = docs.filter((d) => !d.drive_id && clave(d.nombre) === clave(a.nombre));
-    if (sueltos.length) {
-      const paginas = await repo.paginasDe(sueltos.map((d) => d.id));
-      doc = sueltos.find((d) => mismoContenido((paginas[d.id] ?? []).map((p) => p.contenido).join(" "), a.texto));
-    }
-  }
+  // Si ya lo habías subido a mano NO se une solo (S11): queda como documento aparte y la app te sugiere unirlos
   // Nuevo: no existía, o la vez anterior Google no lo pudo leer
   const nuevo = !doc || doc.estado_procesamiento === "error";
   const id = doc?.id ?? (await repo.crearDocumento({ nombre, ruta_storage: null, tipo_archivo: a.mime || null }));

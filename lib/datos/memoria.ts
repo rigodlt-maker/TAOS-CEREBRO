@@ -76,6 +76,10 @@ export function repoMemoria(): Repo {
       Object.assign(d, { categoria: p.categoria, tipo_documento: p.tipo_documento, estado_procesamiento: "listo", ficha: p.ficha });
       e.paginas[docId] = p.paginas;
     },
+    async marcarParcial(docId, aviso) {
+      const d = e.docs.find((x) => x.id === docId);
+      if (d) d.error_procesamiento = aviso;
+    },
     async marcarError(docId, error) {
       const d = e.docs.find((x) => x.id === docId);
       if (d) Object.assign(d, { estado_procesamiento: "error", error_procesamiento: error });
