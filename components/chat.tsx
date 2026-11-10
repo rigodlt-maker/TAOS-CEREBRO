@@ -91,7 +91,7 @@ export function Chat({ autoFocus = false, compacto = false }: { autoFocus?: bool
           onChange={(e) => setTexto(e.target.value)}
           autoFocus={autoFocus}
           maxLength={500}
-          placeholder="Pregúntale a Tao: ¿cuándo vence mi seguro?"
+          placeholder="Escribe tu pregunta…"
           aria-label="Tu pregunta"
           className="h-12 w-full rounded-full border bg-card px-5 text-base focus-visible:outline-2 focus-visible:outline-primary"
         />

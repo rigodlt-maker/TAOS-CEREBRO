@@ -5,6 +5,7 @@ import { Card, CardDescription } from "@/components/ui/card";
 import { Input, Select } from "@/components/ui/campos";
 import { Vencimiento } from "@/components/vencimiento";
 import { hoyEnMexico } from "@/lib/fechas";
+import { evaluar, resumen } from "@/lib/mis-documentos";
 import { obtenerRepo } from "@/lib/sesion";
 import { CATEGORIAS } from "@/lib/tipos";
 
@@ -13,6 +14,12 @@ export default async function Biblioteca({ searchParams }: { searchParams: Promi
   const repo = await obtenerRepo();
   const hoy = hoyEnMexico();
   const docs = await repo.documentos({ categoria: categoria || undefined, q: q?.trim() || undefined });
+  // Con pocos documentos y sin filtro, se muestra qué falta para que la pantalla no quede vacía
+  const sinFiltro = !q && !categoria;
+  const faltan =
+    sinFiltro && docs.length > 0 && docs.length < 6
+      ? resumen(evaluar(docs, ...(await Promise.all([repo.notas(), repo.marcasDocumentos()])))).basicosFaltan
+      : [];
 
   return (
     <div className="grid gap-4">
@@ -54,6 +61,20 @@ export default async function Biblioteca({ searchParams }: { searchParams: Promi
             </li>
           ))}
         </ul>
+      )}
+      {faltan.length > 0 && (
+        <Card>
+          <p className="font-medium">Te faltan {faltan.length === 1 ? "1 básico" : `${faltan.length} básicos`}</p>
+          <CardDescription className="mt-1">{faltan.map((i) => i.nombre).join(", ")}.</CardDescription>
+          <div className="mt-3 grid gap-2">
+            <Link href="/subir" className="flex min-h-12 items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground">
+              Subir un documento
+            </Link>
+            <Link href="/mis-documentos" className="flex min-h-12 items-center justify-center rounded-xl border text-sm font-medium text-primary">
+              Ver mi lista completa
+            </Link>
+          </div>
+        </Card>
       )}
     </div>
   );
