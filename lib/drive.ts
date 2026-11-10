@@ -90,7 +90,8 @@ export async function sincronizarLista(repo: Repo, archivos: ArchivoDrive[], max
   const masivo = plan.borrar.length > 3 && plan.borrar.length > deDrive / 2;
   const bajasPausadas = !listaCompleta || masivo ? plan.borrar.length : 0;
   if (bajasPausadas) plan.borrar = [];
-  for (const { doc, archivo } of plan.vincular) await repo.editarDocumento(doc.id, { drive_id: archivo.id, url_externa: archivo.url });
+  // Mismo nombre ya no basta para unir dos documentos (dos "INE.pdf" pueden ser de personas distintas, S11):
+  // se unen solo cuando llega el texto de Drive y se parece al que ya tenías (ver guardarContenido)
   // Sin volver a leerlos: si cambió el nombre en Drive, o el nombre ya dice qué es y estaba mal clasificado, se corrige
   for (const { doc, archivo } of plan.recategorizar) {
     const nombre = nombreVisible(archivo.nombre);
@@ -126,11 +127,34 @@ export function paginar(texto: string, tamano = 3000): Pagina[] {
   return paginas.filter((p) => p.contenido);
 }
 
+// ¿Es el mismo documento? Las palabras (de 4 letras o más) deben coincidir en 80% o más y, si los dos traen números
+// (CURP, folios, fechas), también esos: dos INE tienen el mismo formato pero distintos datos. Si hay duda, no se unen.
+export function mismoContenido(a: string, b: string): boolean {
+  const palabras = (t: string) => new Set(t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").match(/[a-z0-9]{4,}/g) ?? []);
+  const parecido = (x: Set<string>, y: Set<string>) => {
+    let comunes = 0;
+    for (const w of x) if (y.has(w)) comunes++;
+    return comunes / Math.min(x.size, y.size);
+  };
+  const x = palabras(a), y = palabras(b);
+  if (x.size < 5 || y.size < 5 || parecido(x, y) < 0.8) return false;
+  const nx = new Set([...x].filter((w) => /\d/.test(w))), ny = new Set([...y].filter((w) => /\d/.test(w)));
+  return !nx.size || !ny.size || parecido(nx, ny) >= 0.8;
+}
+
 // 2) El script manda el texto de un archivo (Google lo lee, incluso si es escaneado)
 export async function guardarContenido(repo: Repo, a: ContenidoDrive): Promise<string> {
   const docs = await repo.documentosDrive();
   let doc = docs.find((d) => d.drive_id === a.id);
   const nombre = nombreVisible(a.nombre);
+  // ¿Ya lo habías subido a mano? Solo se une si tiene el mismo nombre Y el mismo contenido
+  if (!doc) {
+    const sueltos = docs.filter((d) => !d.drive_id && clave(d.nombre) === clave(a.nombre));
+    if (sueltos.length) {
+      const paginas = await repo.paginasDe(sueltos.map((d) => d.id));
+      doc = sueltos.find((d) => mismoContenido((paginas[d.id] ?? []).map((p) => p.contenido).join(" "), a.texto));
+    }
+  }
   // Nuevo: no existía, o la vez anterior Google no lo pudo leer
   const nuevo = !doc || doc.estado_procesamiento === "error";
   const id = doc?.id ?? (await repo.crearDocumento({ nombre, ruta_storage: null, tipo_archivo: a.mime || null }));

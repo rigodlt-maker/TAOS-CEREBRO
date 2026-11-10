@@ -4,6 +4,8 @@
   "novedades": [
     "Más seguridad: la primera vez, para crear tu contraseña te pedimos tu código de compra (el mismo que pusiste en Vercel).",
     "TAOS funciona 100% con reglas gratis: se quitó la opción de IA de pago.",
-    "Google Drive: si la lista de tu carpeta llega incompleta, ya no se borra ningún documento; y lo que subiste a mano nunca se borra por Drive."
+    "Google Drive: si la lista de tu carpeta llega incompleta, ya no se borra ningún documento; y lo que subiste a mano nunca se borra por Drive.",
+    "Dos documentos con el mismo nombre (por ejemplo dos INE) solo se unen si su contenido también es igual.",
+    "Los PDF muy grandes se leen con límites para no congelar el celular."
   ]
 }

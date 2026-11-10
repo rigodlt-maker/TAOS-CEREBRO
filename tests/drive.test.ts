@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { repoMemoria } from "../lib/datos/memoria";
+import { procesarTexto } from "../lib/procesar";
 import { categoriaDe, guardarContenido, nombreVisible, paginar, sincronizarLista, type ArchivoDrive } from "../lib/drive";
 
 const archivo = (id: string, nombre: string, actualizado = "2026-10-27T19:00:00Z"): ArchivoDrive => ({
@@ -59,13 +60,15 @@ test("una versión nueva del archivo se vuelve a leer; si lo borras de Drive, se
   assert.equal((await repo.documentos()).length, 0);
 });
 
-test("lo que ya subiste a mano con el mismo nombre se vincula (no se duplica) y se corrige su categoría", async () => {
+test("lo que ya subiste a mano con el mismo nombre y el mismo contenido se vincula (no se duplica) y se corrige su categoría", async () => {
   const repo = await nuevoRepo();
+  const texto = "CLAVE ÚNICA DE REGISTRO DE POBLACIÓN. Nombre JUAN PEREZ LOPEZ. Entidad de registro JALISCO. Fecha de inscripción 1999";
   const id = await repo.crearDocumento({ nombre: "IDENTIDAD - CURP.pdf", ruta_storage: "u/curp.pdf", tipo_archivo: "application/pdf" });
+  await procesarTexto(repo, id, "IDENTIDAD - CURP.pdf", [{ pagina: 1, contenido: texto }]);
   const a = archivo("d4", "IDENTIDAD - CURP.pdf");
   const r = await sincronizarLista(repo, [a]);
   assert.equal(r.vinculados, 1);
-  await guardarContenido(repo, { ...a, texto: "CLAVE ÚNICA DE REGISTRO DE POBLACIÓN" });
+  await guardarContenido(repo, { ...a, texto });
   const docs = await repo.documentos();
   assert.equal(docs.length, 1);
   assert.equal(docs[0].id, id);
@@ -138,10 +141,25 @@ test("S07: una lista incompleta nunca borra; muchas bajas de golpe se pausan; lo
   assert.equal((await repo.documentos()).length, 5);
   // Uno subido a mano y vinculado: al quitarlo de Drive se desvincula, no se borra
   const id = await repo.crearDocumento({ nombre: "INE.pdf", ruta_storage: "u/ine.pdf", tipo_archivo: "application/pdf" });
+  const textoIne = "INSTITUTO NACIONAL ELECTORAL credencial para votar nombre MARIA LOPEZ GARCIA domicilio GUADALAJARA";
+  await procesarTexto(repo, id, "INE.pdf", [{ pagina: 1, contenido: textoIne }]);
   const ine = archivo("s7i", "INE.pdf");
   const todos = ["a", "b", "c", "d", "e"].map((n) => archivo(`s7${n}`, n === "a" ? "Uno.pdf" : n === "b" ? "Dos.pdf" : `${n}.pdf`));
   await sincronizarLista(repo, [...todos, ine]);
+  await guardarContenido(repo, { ...ine, texto: textoIne });
   const fin = await sincronizarLista(repo, todos);
   assert.equal(fin.borrados, 1);
   assert.ok((await repo.documentos()).some((d) => d.id === id));
+});
+
+test("S11: dos INE.pdf con contenido distinto no se unen: quedan dos documentos y el tuyo no cambia", async () => {
+  const repo = await nuevoRepo();
+  const id = await repo.crearDocumento({ nombre: "INE.pdf", ruta_storage: "u/ine.pdf", tipo_archivo: "application/pdf" });
+  await procesarTexto(repo, id, "INE.pdf", [{ pagina: 1, contenido: "INSTITUTO NACIONAL ELECTORAL credencial para votar nombre MARIA LOPEZ GARCIA domicilio GUADALAJARA" }]);
+  const b = archivo("ineB", "INE.pdf");
+  await sincronizarLista(repo, [b]);
+  await guardarContenido(repo, { ...b, texto: "INSTITUTO NACIONAL ELECTORAL credencial para votar nombre PEDRO RAMIREZ SOTO domicilio MONTERREY NUEVO LEON seccion 1234" });
+  const docs = await repo.documentos();
+  assert.equal(docs.length, 2);
+  assert.equal((await repo.documentosDrive()).find((d) => d.id === id)?.drive_id ?? null, null);
 });
