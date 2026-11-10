@@ -119,3 +119,29 @@ test("al sincronizar, corrige la clasificación por el nombre sin volver a leer 
   assert.deepEqual(r.pedir, []);
   assert.equal((await repo.documentos())[0].tipo_documento, "Acta de nacimiento");
 });
+
+test("S07: una lista incompleta nunca borra; muchas bajas de golpe se pausan; lo subido a mano solo se desvincula", async () => {
+  const repo = await nuevoRepo();
+  const a = archivo("s7a", "Uno.pdf"), b = archivo("s7b", "Dos.pdf");
+  await guardarContenido(repo, { ...a, texto: "Documento uno" });
+  await guardarContenido(repo, { ...b, texto: "Documento dos" });
+  // Lista incompleta [a]: b se queda
+  const r = await sincronizarLista(repo, [a], 6, false);
+  assert.equal(r.borrados, 0);
+  assert.equal(r.bajasPausadas, 1);
+  assert.equal((await repo.documentos()).length, 2);
+  // Faltan 4 de 5 de golpe: se pausan
+  for (const n of ["c", "d", "e"]) await guardarContenido(repo, { ...archivo(`s7${n}`, `${n}.pdf`), texto: "x" });
+  const masivo = await sincronizarLista(repo, [a]);
+  assert.equal(masivo.borrados, 0);
+  assert.equal(masivo.bajasPausadas, 4);
+  assert.equal((await repo.documentos()).length, 5);
+  // Uno subido a mano y vinculado: al quitarlo de Drive se desvincula, no se borra
+  const id = await repo.crearDocumento({ nombre: "INE.pdf", ruta_storage: "u/ine.pdf", tipo_archivo: "application/pdf" });
+  const ine = archivo("s7i", "INE.pdf");
+  const todos = ["a", "b", "c", "d", "e"].map((n) => archivo(`s7${n}`, n === "a" ? "Uno.pdf" : n === "b" ? "Dos.pdf" : `${n}.pdf`));
+  await sincronizarLista(repo, [...todos, ine]);
+  const fin = await sincronizarLista(repo, todos);
+  assert.equal(fin.borrados, 1);
+  assert.ok((await repo.documentos()).some((d) => d.id === id));
+});

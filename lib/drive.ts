@@ -80,8 +80,16 @@ export function planear(archivos: ArchivoDrive[], docs: DocumentoDrive[]): Plan 
 }
 
 // 1) El script manda la lista de archivos de la carpeta; la app responde cuáles necesita leer
-export async function sincronizarLista(repo: Repo, archivos: ArchivoDrive[], maximo = 6) {
-  const plan = planear(archivos, await repo.documentosDrive());
+// Bajas: solo con una lista completa (sin recortes ni archivos inválidos). Si de golpe faltan muchos (más de 3 y más de
+// la mitad), se pausan: casi siempre es un error de Google o de la carpeta, no que borraste todo.
+// Lo que subiste a mano y luego se vinculó con Drive no se borra: solo se desvincula (tu archivo original se queda).
+export async function sincronizarLista(repo: Repo, archivos: ArchivoDrive[], maximo = 6, listaCompleta = true) {
+  const docs = await repo.documentosDrive();
+  const plan = planear(archivos, docs);
+  const deDrive = docs.filter((d) => d.drive_id).length;
+  const masivo = plan.borrar.length > 3 && plan.borrar.length > deDrive / 2;
+  const bajasPausadas = !listaCompleta || masivo ? plan.borrar.length : 0;
+  if (bajasPausadas) plan.borrar = [];
   for (const { doc, archivo } of plan.vincular) await repo.editarDocumento(doc.id, { drive_id: archivo.id, url_externa: archivo.url });
   // Sin volver a leerlos: si cambió el nombre en Drive, o el nombre ya dice qué es y estaba mal clasificado, se corrige
   for (const { doc, archivo } of plan.recategorizar) {
@@ -93,8 +101,11 @@ export async function sincronizarLista(repo: Repo, archivos: ArchivoDrive[], max
     };
     if (Object.keys(cambios).length) await repo.editarDocumento(doc.id, cambios);
   }
-  for (const doc of plan.borrar) await repo.borrarDocumento(doc.id);
-  return { pedir: plan.pedir.slice(0, maximo), pendientes: plan.pedir.length, vinculados: plan.vincular.length, borrados: plan.borrar.length };
+  for (const doc of plan.borrar) {
+    if (doc.ruta_storage) await repo.editarDocumento(doc.id, { drive_id: null, drive_actualizado: null, url_externa: null });
+    else await repo.borrarDocumento(doc.id);
+  }
+  return { pedir: plan.pedir.slice(0, maximo), pendientes: plan.pedir.length, vinculados: plan.vincular.length, borrados: plan.borrar.length, bajasPausadas };
 }
 
 // El texto de Drive no trae páginas: se parte en trozos de ~3,000 caracteres

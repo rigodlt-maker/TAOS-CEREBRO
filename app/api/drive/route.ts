@@ -26,14 +26,17 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   if (!autorizado(req)) return Response.json({ ok: false, error: "La clave no coincide" }, { status: 401 });
-  const cuerpo = (await req.json().catch(() => null)) as { accion?: string; archivos?: Partial<ArchivoDrive>[]; archivo?: Partial<ContenidoDrive> } | null;
+  const cuerpo = (await req.json().catch(() => null)) as { accion?: string; archivos?: Partial<ArchivoDrive>[]; total?: number; archivo?: Partial<ContenidoDrive> } | null;
   try {
     const repo = await repoDelDueno();
     if (cuerpo?.accion === "lista") {
-      const archivos = (cuerpo.archivos ?? []).slice(0, 2000).map(archivo).filter((a): a is ArchivoDrive => !!a);
+      const recibidos = Array.isArray(cuerpo.archivos) ? cuerpo.archivos : [];
+      const archivos = recibidos.slice(0, 2000).map(archivo).filter((a): a is ArchivoDrive => !!a);
       // Una carpeta vacía (o mal encontrada) nunca borra tus documentos
-      if (!archivos.length) return Response.json({ ok: true, pedir: [], pendientes: 0, vinculados: 0, borrados: 0 });
-      const r = await sincronizarLista(repo, archivos, 15);
+      if (!archivos.length) return Response.json({ ok: true, pedir: [], pendientes: 0, vinculados: 0, borrados: 0, bajasPausadas: 0 });
+      // Solo una lista completa puede quitar documentos: sin recortes, sin archivos inválidos y con el total que dice el script
+      const completa = archivos.length === recibidos.length && (cuerpo.total === undefined || cuerpo.total === recibidos.length);
+      const r = await sincronizarLista(repo, archivos, 15, completa);
       revalidatePath("/", "layout");
       return Response.json({ ok: true, ...r });
     }

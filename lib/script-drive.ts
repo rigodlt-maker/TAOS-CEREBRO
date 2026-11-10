@@ -82,7 +82,7 @@ function revisarServicio() {
 function sincronizar() {
   const inicio = Date.now();
   const archivos = listar(carpeta(), "", []);
-  const r = enviar({ accion: "lista", archivos: archivos });
+  const r = enviar({ accion: "lista", archivos: archivos, total: archivos.length });
   let leidos = 0;
   for (const id of r.pedir) {
     if (Date.now() - inicio > 4 * 60 * 1000) break; // Google da 6 minutos por vuelta; lo demás sigue en la próxima
