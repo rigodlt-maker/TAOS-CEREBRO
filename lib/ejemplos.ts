@@ -49,7 +49,7 @@ Para cancelar la póliza se debe dar aviso por escrito con 15 días naturales de
           pagina: 1,
           contenido: `CONTRATO DE ARRENDAMIENTO DE CASA HABITACIÓN
 Celebrado el 1 de marzo de ${a} entre
-Arrendador: María López Ejemplo
+Arrendador: María López
 Arrendatario: Rodrigo Martínez Solís
 PRIMERA. El inmueble ubicado en Calle Falsa 123, Col. Centro.
 SEGUNDA. La renta mensual será de $9,500.00 pesos, pagaderos los primeros 5 días de cada mes.
