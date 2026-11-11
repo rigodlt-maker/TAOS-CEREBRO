@@ -94,7 +94,7 @@ function sincronizar() {
     } catch (e) {
       error = String((e && e.message) || e).slice(0, 200);
     }
-    const res = enviar({ accion: "contenido", archivo: Object.assign({}, f, { texto: texto.slice(0, 900000), error: error }) });
+    const res = enviar({ accion: "contenido", archivo: Object.assign({}, f, { texto: texto.slice(0, 900000), recortado: texto.length > 900000, error: error }) });
     Logger.log(res.mensaje + (error ? " — " + error : ""));
     leidos++;
   }

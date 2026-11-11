@@ -8,7 +8,7 @@ import { avisoDocumentoNuevo, enviarPush } from "./push";
 import type { Categoria, DocumentoDrive, Pagina } from "./tipos";
 
 export type ArchivoDrive = { id: string; nombre: string; mime: string; actualizado: string; url: string; carpeta?: string };
-export type ContenidoDrive = ArchivoDrive & { texto: string; error?: string };
+export type ContenidoDrive = ArchivoDrive & { texto: string; error?: string; recortado?: boolean };
 
 const PREFIJOS: [RegExp, Categoria][] = [
   [/^(identidad|identificacion|tramites?|personal(es)?)$/, "Identidad y trámites"],
@@ -84,6 +84,7 @@ export function planear(archivos: ArchivoDrive[], docs: DocumentoDrive[]): Plan 
 // la mitad), se pausan: casi siempre es un error de Google o de la carpeta, no que borraste todo.
 // Lo que subiste a mano y luego se vinculó con Drive no se borra: solo se desvincula (tu archivo original se queda).
 export async function sincronizarLista(repo: Repo, archivos: ArchivoDrive[], maximo = 6, listaCompleta = true) {
+  await repararUniones(repo); // una unión que se quedó a la mitad se termina o se deshace antes de comparar (S11-M)
   const docs = await repo.documentosDrive();
   const plan = planear(archivos, docs);
   const deDrive = docs.filter((d) => d.drive_id).length;
@@ -157,14 +158,50 @@ export async function posiblesIguales(repo: Repo, id: string): Promise<Documento
 
 // Tú confirmaste que son el mismo: el subido a mano se queda (con su archivo y su ficha) y toma el enlace de Drive;
 // la copia que creó Drive se quita. Solo une un documento subido a mano con uno de Drive sin archivo propio.
+// Unión manual en pasos que se pueden retomar (S11-M). Nunca se borra la copia de Drive antes de que tu documento
+// ya tenga el enlace y se haya comprobado. Como Postgres no deja dos documentos con el mismo drive_id, la copia
+// primero queda "apartada" (drive_id con la marca #uniendo:<tu documento>), así siempre se sabe qué se estaba haciendo.
+// Si algo falla a la mitad, repararUniones() lo termina o lo deshace: al inicio de cada sincronización y de cada unión.
+const MARCA = "#uniendo:";
+export const apartado = (driveId: string, manualId: string) => `${driveId}${MARCA}${manualId}`;
+
+export async function repararUniones(repo: Repo): Promise<number> {
+  let arreglados = 0;
+  const docs = await repo.documentosDrive();
+  for (const d of docs) {
+    const i = d.drive_id?.indexOf(MARCA) ?? -1;
+    if (!d.drive_id || i < 0) continue;
+    const original = d.drive_id.slice(0, i);
+    const manual = docs.find((x) => x.id === d.drive_id!.slice(i + MARCA.length));
+    if (manual?.drive_id === original) await repo.borrarDocumento(d.id); // ya estaba unido: solo faltaba quitar la copia
+    else await repo.editarDocumento(d.id, { drive_id: original }); // no se alcanzó a unir: la copia vuelve a ser la de Drive
+    arreglados++;
+  }
+  return arreglados;
+}
+
 export async function unirDocumentos(repo: Repo, manualId: string, driveDocId: string): Promise<void> {
+  await repararUniones(repo);
   const docs = await repo.documentosDrive();
   const manual = docs.find((d) => d.id === manualId);
   const deDrive = docs.find((d) => d.id === driveDocId);
   if (!manual || !deDrive || manual.drive_id || !deDrive.drive_id || deDrive.ruta_storage) throw new Error("Estos dos documentos no se pueden unir.");
+  const driveId = deDrive.drive_id;
   const url = await repo.enlaceExterno(deDrive.id);
-  await repo.borrarDocumento(deDrive.id);
-  await repo.editarDocumento(manual.id, { drive_id: deDrive.drive_id, drive_actualizado: deDrive.drive_actualizado, url_externa: url });
+  // 1) Apartar la copia (sigue completa, con su texto y su enlace)
+  await repo.editarDocumento(deDrive.id, { drive_id: apartado(driveId, manual.id) });
+  try {
+    // 2) Tu documento toma el enlace de Drive y 3) se comprueba que de verdad quedó
+    await repo.editarDocumento(manual.id, { drive_id: driveId, drive_actualizado: deDrive.drive_actualizado, url_externa: url });
+    const quedo = (await repo.documentosDrive()).find((d) => d.id === manual.id);
+    if (quedo?.drive_id !== driveId) throw new Error("no quedó el enlace");
+  } catch {
+    // No se unió: la copia vuelve a ser la de Drive. Si ni eso se puede, la marca queda y repararUniones lo deshace.
+    await repo.editarDocumento(deDrive.id, { drive_id: driveId }).catch(() => {});
+    throw new Error("No se pudieron unir. No se borró nada: tus dos documentos siguen como estaban. Inténtalo de nuevo.");
+  }
+  // 4) Ya unido y comprobado: ahora sí se quita la copia (si falla, se quita en la próxima sincronización)
+  await repo.borrarDocumento(deDrive.id).catch(() => {});
 }
 
 // 2) El script manda el texto de un archivo (Google lo lee, incluso si es escaneado)
@@ -183,7 +220,7 @@ export async function guardarContenido(repo: Repo, a: ContenidoDrive): Promise<s
   // Si la app reconoce el documento por su contenido, esa categoría manda; si no, la del prefijo del nombre
   let reconocido = false;
   if (a.texto?.trim()) {
-    const r = await procesarTexto(repo, id, nombre, paginar(a.texto));
+    const r = await procesarTexto(repo, id, nombre, paginar(a.texto), a.recortado ? "Google entregó solo el principio del texto (el archivo es muy largo)." : null);
     mensaje = r.mensaje;
     reconocido = r.ok && !!r.tipo && r.tipo !== "Documento";
     // Aviso en el celular solo la primera vez que se lee un documento nuevo de Drive

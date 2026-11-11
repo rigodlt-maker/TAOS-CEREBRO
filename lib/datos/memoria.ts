@@ -73,7 +73,7 @@ export function repoMemoria(): Repo {
     async guardarProcesado(docId, p) {
       const d = e.docs.find((x) => x.id === docId);
       if (!d) return;
-      Object.assign(d, { categoria: p.categoria, tipo_documento: p.tipo_documento, estado_procesamiento: "listo", ficha: p.ficha });
+      Object.assign(d, { categoria: p.categoria, tipo_documento: p.tipo_documento, estado_procesamiento: "listo", error_procesamiento: null, ficha: p.ficha });
       e.paginas[docId] = p.paginas;
     },
     async marcarParcial(docId, aviso) {

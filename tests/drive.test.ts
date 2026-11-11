@@ -214,3 +214,80 @@ test("unir solo junta uno subido a mano con uno de Drive (no dos de Drive ni dos
   const b = await repo.crearDocumento({ nombre: "X.pdf", ruta_storage: "u/x2.pdf", tipo_archivo: "application/pdf" });
   await assert.rejects(unirDocumentos(repo, a, b));
 });
+
+// Repo que se comporta como Postgres con el índice único (user_id, drive_id) y deja hacer fallar un paso
+function conFallas(repo: Awaited<ReturnType<typeof nuevoRepo>>) {
+  const fallar = { editarManual: false, editarCopia: false, borrar: false };
+  let manualId = "";
+  const r = {
+    ...repo,
+    async editarDocumento(id: string, datos: Parameters<typeof repo.editarDocumento>[1]) {
+      if (fallar.editarManual && id === manualId) throw new Error("se cayó la base");
+      if (fallar.editarCopia && id !== manualId) throw new Error("se cayó la base");
+      if (datos.drive_id && (await repo.documentosDrive()).some((d) => d.id !== id && d.drive_id === datos.drive_id)) throw new Error("duplicate key documents_drive_id");
+      return repo.editarDocumento(id, datos);
+    },
+    async borrarDocumento(id: string) {
+      if (fallar.borrar) throw new Error("se cayó la base");
+      return repo.borrarDocumento(id);
+    },
+  };
+  return { r, fallar, fijar: (id: string) => (manualId = id) };
+}
+
+async function dosParaUnir() {
+  const repo = await nuevoRepo();
+  const texto = "CLAVE ÚNICA DE REGISTRO DE POBLACIÓN. Nombre JUAN PEREZ LOPEZ. Entidad de registro JALISCO.";
+  const id = await repo.crearDocumento({ nombre: "IDENTIDAD - CURP.pdf", ruta_storage: "u/curp.pdf", tipo_archivo: "application/pdf" });
+  await procesarTexto(repo, id, "IDENTIDAD - CURP.pdf", [{ pagina: 1, contenido: texto }]);
+  const a = archivo("d9", "IDENTIDAD - CURP.pdf");
+  await sincronizarLista(repo, [a]);
+  await guardarContenido(repo, { ...a, texto });
+  const copia = (await repo.documentosDrive()).find((d) => d.drive_id === "d9")!;
+  return { repo, id, copia, a };
+}
+
+test("S11-M: si falla la base al editar tu documento, NO se borra la copia de Drive y los dos quedan como estaban", async () => {
+  const { repo, id, copia } = await dosParaUnir();
+  const { r, fallar, fijar } = conFallas(repo);
+  fijar(id);
+  fallar.editarManual = true;
+  await assert.rejects(unirDocumentos(r as never, id, copia.id), /No se borró nada/);
+  const docs = await repo.documentosDrive();
+  assert.equal(docs.length, 2);
+  assert.equal(docs.find((d) => d.id === copia.id)?.drive_id, "d9"); // la copia sigue siendo la de Drive
+  assert.equal(docs.find((d) => d.id === id)?.drive_id, null);
+  assert.equal(await repo.enlaceExterno(copia.id), "https://drive.google.com/file/d/d9/view");
+});
+
+test("S11-M: si se cae también al deshacer, la marca queda y la siguiente sincronización lo deshace (sin duplicar ni perder)", async () => {
+  const { repo, id, copia, a } = await dosParaUnir();
+  const { r, fallar, fijar } = conFallas(repo);
+  fijar(id);
+  // Falla tu documento y luego también regresar la copia: queda apartada con la marca
+  let primera = true;
+  const r2 = { ...r, async editarDocumento(i: string, d: never) { if (i === copia.id && !primera) throw new Error("se cayó"); if (i === copia.id) primera = false; return r.editarDocumento(i, d); } };
+  fallar.editarManual = true;
+  await assert.rejects(unirDocumentos(r2 as never, id, copia.id));
+  assert.match((await repo.documentosDrive()).find((d) => d.id === copia.id)!.drive_id!, /#uniendo:/);
+  // La sincronización lo repara antes de comparar: no pide leer otra vez ni crea un tercer documento
+  const s = await sincronizarLista(repo, [a]);
+  assert.deepEqual(s.pedir, []);
+  const docs = await repo.documentosDrive();
+  assert.equal(docs.length, 2);
+  assert.equal(docs.find((d) => d.id === copia.id)?.drive_id, "d9");
+});
+
+test("S11-M: unido y comprobado, pero falla quitar la copia: tu documento ya tiene Drive y la copia se quita en la siguiente sincronización", async () => {
+  const { repo, id, copia, a } = await dosParaUnir();
+  const { r, fallar, fijar } = conFallas(repo);
+  fijar(id);
+  fallar.borrar = true;
+  await unirDocumentos(r as never, id, copia.id);
+  assert.equal((await repo.documentosDrive()).find((d) => d.id === id)?.drive_id, "d9");
+  const s = await sincronizarLista(repo, [a]);
+  assert.deepEqual(s.pedir, []);
+  const docs = await repo.documentos();
+  assert.equal(docs.length, 1);
+  assert.equal(docs[0].id, id);
+});

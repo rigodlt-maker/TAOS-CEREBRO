@@ -43,7 +43,10 @@ export async function POST(req: Request) {
     if (cuerpo?.accion === "contenido") {
       const a = archivo(cuerpo.archivo);
       if (!a) return Response.json({ ok: false, error: "Archivo incompleto" }, { status: 400 });
-      const mensaje = await guardarContenido(repo, { ...a, texto: String(cuerpo.archivo?.texto ?? "").slice(0, 1_000_000), error: String(cuerpo.archivo?.error ?? "") || undefined });
+      const texto = String(cuerpo.archivo?.texto ?? "");
+      // Si Google o este paso cortaron el texto, se avisa como lectura parcial (S18-T)
+      const recortado = cuerpo.archivo?.recortado === true || texto.length > 1_000_000;
+      const mensaje = await guardarContenido(repo, { ...a, texto: texto.slice(0, 1_000_000), recortado, error: String(cuerpo.archivo?.error ?? "") || undefined });
       revalidatePath("/", "layout");
       return Response.json({ ok: true, mensaje });
     }

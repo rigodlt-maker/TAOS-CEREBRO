@@ -43,8 +43,8 @@ export async function prepararSubida(nombre: string, tipo: string): Promise<{ id
 // parcial: si no se pudo leer todo (S18), se guarda el aviso junto al documento para que se vea en su ficha
 export async function procesarDocumento(id: string, nombre: string, paginas: Pagina[], parcial: string | null = null): Promise<Resultado> {
   const repo = await obtenerRepo();
-  const r = await procesarTexto(repo, id, nombre, paginas.slice(0, 200).map((p) => ({ pagina: p.pagina, contenido: String(p.contenido).slice(0, 20_000) })));
-  if (r.ok && parcial) await repo.marcarParcial(id, `Lectura parcial: ${String(parcial).slice(0, 400)}`);
+  // Los topes y el aviso de lectura parcial se aplican en procesarTexto (S18-T): aquí no se recorta en silencio
+  const r = await procesarTexto(repo, id, nombre, Array.isArray(paginas) ? paginas : [], parcial ? String(parcial) : null);
   revalidatePath("/", "layout");
   return { ok: r.ok, mensaje: r.mensaje } as Resultado;
 }

@@ -45,6 +45,17 @@ export function escalaSegura(ancho: number, alto: number, preferida = 2): number
 
 const motivoDe = (m: string[]) => (m.length ? m.join(" ") : null);
 
+// Texto sin páginas (TXT, foto): se parte en páginas de MAX_TEXTO_PAGINA en vez de cortarlo, hasta MAX_TEXTO_TOTAL.
+// Si no cabe todo, se marca como lectura parcial y se dice qué pasó (S18-T): nunca se presenta mutilado como completo.
+export function partirTexto(texto: string, motivoSiNoCabe: string, yaRecortado: string | null = null): Lectura {
+  const cabe = texto.slice(0, MAX_TEXTO_TOTAL);
+  const paginas: Pagina[] = [];
+  for (let i = 0; i < cabe.length; i += MAX_TEXTO_PAGINA) paginas.push({ pagina: paginas.length + 1, contenido: cabe.slice(i, i + MAX_TEXTO_PAGINA) });
+  if (!paginas.length) paginas.push({ pagina: 1, contenido: "" });
+  const motivos = [yaRecortado, cabe.length < texto.length ? motivoSiNoCabe : null].filter((m): m is string => !!m);
+  return { paginas, parcial: motivos.length > 0, omitidas: [], motivo: motivoDe([...new Set(motivos)]) };
+}
+
 async function leerPdf(archivo: File, avisar: Progreso): Promise<Lectura> {
   const pdfjs = await import("pdfjs-dist");
   pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
@@ -131,7 +142,7 @@ async function leerImagen(archivo: File, avisar: Progreso): Promise<Lectura> {
     ocr = await crearOcr(avisar);
     avisar("Leyendo la imagen…");
     const texto = await ocr.leer(lienzo);
-    return { paginas: [{ pagina: 1, contenido: texto.slice(0, MAX_TEXTO_PAGINA) }], parcial: texto.length > MAX_TEXTO_PAGINA, omitidas: [], motivo: texto.length > MAX_TEXTO_PAGINA ? "Se recortó el texto de la imagen." : null };
+    return partirTexto(texto, "Se recortó el texto de la imagen (es muy largo).");
   } finally {
     lienzo.width = lienzo.height = 0;
     bitmap.close();
@@ -145,8 +156,9 @@ export async function leerArchivo(archivo: File, avisar: Progreso): Promise<Lect
   if (tipo.startsWith("image/")) return leerImagen(archivo, avisar);
   avisar("Leyendo texto…");
   const grande = archivo.size > MAX_BYTES_TEXTO;
-  const texto = (await archivo.slice(0, MAX_BYTES_TEXTO).text()).slice(0, MAX_TEXTO_TOTAL);
-  return { paginas: [{ pagina: 1, contenido: texto }], parcial: grande, omitidas: [], motivo: grande ? "Solo se leyó el principio de este archivo de texto (es muy grande)." : null };
+  const texto = await archivo.slice(0, MAX_BYTES_TEXTO).text();
+  const muyGrande = "Solo se leyó el principio de este archivo de texto (es muy grande).";
+  return partirTexto(texto, muyGrande, grande ? muyGrande : null);
 }
 
 export const ACEPTA = "application/pdf,image/*,text/plain,text/markdown,.txt,.md,.csv";
