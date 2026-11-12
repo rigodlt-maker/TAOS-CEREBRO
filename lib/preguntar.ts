@@ -5,7 +5,21 @@ import { datoPedido, responderDato } from "./datos-personales";
 import { iaDisponible, responderConIA } from "./ia";
 import { analizarPregunta, recorte, responder } from "./responder";
 import { respuestaTarjetas } from "./tarjetas-administrador";
-import type { Cita } from "./tipos";
+import type { Cita, Documento } from "./tipos";
+
+// S18 · Si la respuesta usa un documento que se leyó INCOMPLETO, Tao lo dice siempre, al final de la respuesta (y queda
+// en el historial): puede faltar justo lo que preguntas (p. ej. el vencimiento que venía al final).
+export const esParcial = (d: Pick<Documento, "estado_procesamiento" | "error_procesamiento">) =>
+  d.estado_procesamiento === "listo" && !!d.error_procesamiento?.startsWith("Lectura parcial");
+export function avisoParcial(ids: Iterable<string | null | undefined>, todos: Documento[]): string {
+  const usados = new Set([...ids].filter(Boolean));
+  const parciales = todos.filter((d) => usados.has(d.id) && esParcial(d));
+  if (!parciales.length) return "";
+  const lista = parciales.map((d) => `[${d.nombre}](/documentos/${d.id})`).join(", ");
+  const uno = parciales.length === 1;
+  return `\n\n⚠️ Ojo: ${lista} ${uno ? "se leyó incompleto" : "se leyeron incompletos"}: puede faltar información (por ejemplo, fechas o datos que venían al final). Revisa el documento original antes de confiar en esta respuesta.`;
+}
+const idsDe = (citas: Cita[]) => citas.map((c) => c.documento_id);
 
 // Busca, arma la respuesta (reglas o IA) y la entrega por partes (streaming). Al final la guarda en el historial.
 export async function* preguntar(repo: Repo, pregunta: string): AsyncGenerator<string> {
@@ -17,8 +31,9 @@ export async function* preguntar(repo: Repo, pregunta: string): AsyncGenerator<s
   if (dato) {
     const listos = todos.filter((d) => d.estado_procesamiento === "listo");
     const r = responderDato(dato, listos, await repo.paginasDe(listos.map((d) => d.id)));
-    for (const trozo of r.texto.match(/[\s\S]{1,24}/g) ?? []) yield trozo;
-    await repo.guardarPregunta(pregunta, r.texto, r.citas);
+    const texto = r.texto + avisoParcial(idsDe(r.citas), todos);
+    for (const trozo of texto.match(/[\s\S]{1,24}/g) ?? []) yield trozo;
+    await repo.guardarPregunta(pregunta, texto, r.citas);
     return;
   }
 
@@ -33,8 +48,9 @@ export async function* preguntar(repo: Repo, pregunta: string): AsyncGenerator<s
   // Preguntas sobre tu archivo en general ("¿qué documentos tengo?", "pásame mi INE", "¿qué me falta?")
   const general = conversar(pregunta, todos, notas, hoy);
   if (general) {
-    for (const trozo of general.texto.match(/[\s\S]{1,24}/g) ?? []) yield trozo;
-    await repo.guardarPregunta(pregunta, general.texto, general.citas);
+    const texto = general.texto + avisoParcial(idsDe(general.citas), todos);
+    for (const trozo of texto.match(/[\s\S]{1,24}/g) ?? []) yield trozo;
+    await repo.guardarPregunta(pregunta, texto, general.citas);
     return;
   }
 
@@ -50,7 +66,10 @@ export async function* preguntar(repo: Repo, pregunta: string): AsyncGenerator<s
   let citas: Cita[] = [];
   if (iaDisponible() && fragmentos.length) {
     const contexto = [
-      ...documentos.map((d) => `FICHA de [${d.nombre}](/documentos/${d.id}) (${d.tipo_documento ?? d.categoria}): ${JSON.stringify(d.ficha)}`),
+      ...documentos.map(
+        (d) =>
+          `FICHA de [${d.nombre}](/documentos/${d.id}) (${d.tipo_documento ?? d.categoria})${esParcial(d) ? " [LECTURA PARCIAL: el documento se leyó incompleto; puede faltar el final]" : ""}: ${JSON.stringify(d.ficha)}`,
+      ),
       ...fragmentos
         .filter((f) => f.tipo !== "documento")
         .map((f) => {
@@ -78,6 +97,12 @@ export async function* preguntar(repo: Repo, pregunta: string): AsyncGenerator<s
     citas = r.citas;
     // Se envía en trozos para que se vea escribiéndose
     for (const trozo of texto.match(/[\s\S]{1,24}/g) ?? []) yield trozo;
+  }
+  // Documentos que se buscaron o se citaron: si alguno se leyó incompleto, se avisa (con reglas o con IA)
+  const aviso = avisoParcial([...ids, ...idsDe(citas)], todos);
+  if (aviso) {
+    texto += aviso;
+    for (const trozo of aviso.match(/[\s\S]{1,24}/g) ?? []) yield trozo;
   }
   await repo.guardarPregunta(pregunta, texto, citas);
 }
