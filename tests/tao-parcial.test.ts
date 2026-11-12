@@ -39,3 +39,33 @@ test("S18: con el documento completo, Tao no agrega el aviso", async () => {
   const r = await preguntarA(repo, "¿Cuánto pago de renta del departamento?");
   assert.doesNotMatch(r, /incompleto/);
 });
+
+// Ronda 3 de Codex: respuesta NEGATIVA tras revisar un documento parcial
+test("S18 (ronda 3): «¿Cuál es mi RFC?» sin encontrarlo, con la constancia leída a medias: Tao advierte en la respuesta y en el historial", async () => {
+  const { repoMemoria } = await import("../lib/datos/memoria");
+  const { procesarTexto } = await import("../lib/procesar");
+  (globalThis as { __cerebroDemo?: unknown }).__cerebroDemo = undefined;
+  const repo = repoMemoria();
+  for (const d of await repo.documentos()) await repo.borrarDocumento(d.id);
+  const id = await repo.crearDocumento({ nombre: "Constancia de situacion fiscal.txt", ruta_storage: null, tipo_archivo: "text/plain" });
+  await procesarTexto(repo, id, "Constancia de situacion fiscal.txt", [{ pagina: 1, contenido: "CONSTANCIA DE SITUACIÓN FISCAL. Servicio de Administración Tributaria. Datos de identificación del contribuyente:" }], "Solo se leyó el principio; falta el final que contiene el RFC.");
+  assert.match((await repo.documentos())[0].error_procesamiento ?? "", /^Lectura parcial/);
+  const r = await preguntarA(repo, "¿Cuál es mi RFC?");
+  assert.match(r, /No encontré/);
+  assert.match(r, /⚠️ Ojo: \[Constancia de situacion fiscal\.txt\]\(\/documentos\/[\w-]+\) se leyó incompleto: lo que buscas podría estar en la parte que no se leyó/);
+  assert.match((await repo.preguntas())[0].respuesta, /se leyó incompleto/);
+});
+
+test("S18 (ronda 3): negativo también en preguntas generales y en la búsqueda, con un documento parcial", async () => {
+  const { repo } = await repoCon("Solo se leyeron las primeras páginas; falta el final con el vencimiento.");
+  for (const p of ["pásame mi pasaporte", "¿cuál es el número de póliza del seguro del coche?"]) {
+    const r = await preguntarA(repo, p);
+    assert.match(r, /se leyó incompleto/, p);
+  }
+});
+
+test("S18 (ronda 3): sin documentos parciales, una respuesta negativa no lleva aviso", async () => {
+  const { repo } = await repoCon(null);
+  const r = await preguntarA(repo, "¿Cuál es mi RFC?");
+  assert.doesNotMatch(r, /incompleto/);
+});

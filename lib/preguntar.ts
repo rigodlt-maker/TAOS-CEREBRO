@@ -11,15 +11,21 @@ import type { Cita, Documento } from "./tipos";
 // en el historial): puede faltar justo lo que preguntas (p. ej. el vencimiento que venía al final).
 export const esParcial = (d: Pick<Documento, "estado_procesamiento" | "error_procesamiento">) =>
   d.estado_procesamiento === "listo" && !!d.error_procesamiento?.startsWith("Lectura parcial");
-export function avisoParcial(ids: Iterable<string | null | undefined>, todos: Documento[]): string {
+// negativo = Tao no encontró lo que pediste: el dato podría estar justo en la parte que no se leyó.
+export function avisoParcial(ids: Iterable<string | null | undefined>, todos: Documento[], negativo = false): string {
   const usados = new Set([...ids].filter(Boolean));
   const parciales = todos.filter((d) => usados.has(d.id) && esParcial(d));
   if (!parciales.length) return "";
   const lista = parciales.map((d) => `[${d.nombre}](/documentos/${d.id})`).join(", ");
   const uno = parciales.length === 1;
+  if (negativo)
+    return `\n\n⚠️ Ojo: ${lista} ${uno ? "se leyó incompleto" : "se leyeron incompletos"}: lo que buscas podría estar en la parte que no se leyó. Revisa ${uno ? "ese documento" : "esos documentos"} antes de dar por hecho que no lo tienes.`;
   return `\n\n⚠️ Ojo: ${lista} ${uno ? "se leyó incompleto" : "se leyeron incompletos"}: puede faltar información (por ejemplo, fechas o datos que venían al final). Revisa el documento original antes de confiar en esta respuesta.`;
 }
 const idsDe = (citas: Cita[]) => citas.map((c) => c.documento_id);
+// Qué documentos se consultaron: los citados; si no se citó ninguno (no se encontró), TODOS los que se revisaron (S18, ronda 3)
+const consultados = (citas: Cita[], revisados: Documento[]) => (citas.some((c) => c.documento_id) ? idsDe(citas) : revisados.map((d) => d.id));
+const sinCitas = (citas: Cita[]) => !citas.some((c) => c.documento_id);
 
 // Busca, arma la respuesta (reglas o IA) y la entrega por partes (streaming). Al final la guarda en el historial.
 export async function* preguntar(repo: Repo, pregunta: string): AsyncGenerator<string> {
@@ -31,7 +37,7 @@ export async function* preguntar(repo: Repo, pregunta: string): AsyncGenerator<s
   if (dato) {
     const listos = todos.filter((d) => d.estado_procesamiento === "listo");
     const r = responderDato(dato, listos, await repo.paginasDe(listos.map((d) => d.id)));
-    const texto = r.texto + avisoParcial(idsDe(r.citas), todos);
+    const texto = r.texto + avisoParcial(consultados(r.citas, listos), todos, sinCitas(r.citas));
     for (const trozo of texto.match(/[\s\S]{1,24}/g) ?? []) yield trozo;
     await repo.guardarPregunta(pregunta, texto, r.citas);
     return;
@@ -48,7 +54,7 @@ export async function* preguntar(repo: Repo, pregunta: string): AsyncGenerator<s
   // Preguntas sobre tu archivo en general ("¿qué documentos tengo?", "pásame mi INE", "¿qué me falta?")
   const general = conversar(pregunta, todos, notas, hoy);
   if (general) {
-    const texto = general.texto + avisoParcial(idsDe(general.citas), todos);
+    const texto = general.texto + avisoParcial(consultados(general.citas, todos), todos, sinCitas(general.citas));
     for (const trozo of texto.match(/[\s\S]{1,24}/g) ?? []) yield trozo;
     await repo.guardarPregunta(pregunta, texto, general.citas);
     return;
@@ -99,7 +105,8 @@ export async function* preguntar(repo: Repo, pregunta: string): AsyncGenerator<s
     for (const trozo of texto.match(/[\s\S]{1,24}/g) ?? []) yield trozo;
   }
   // Documentos que se buscaron o se citaron: si alguno se leyó incompleto, se avisa (con reglas o con IA)
-  const aviso = avisoParcial([...ids, ...idsDe(citas)], todos);
+  // Si no salió nada, también se revisaron por nombre todos los documentos: cualquiera incompleto puede tener la respuesta
+  const aviso = sinCitas(citas) && !ids.length ? avisoParcial(todos.map((d) => d.id), todos, true) : avisoParcial([...ids, ...idsDe(citas)], todos, sinCitas(citas));
   if (aviso) {
     texto += aviso;
     for (const trozo of aviso.match(/[\s\S]{1,24}/g) ?? []) yield trozo;
