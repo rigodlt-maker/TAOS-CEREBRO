@@ -1,12 +1,14 @@
 {
-  "version": "1.2.1",
-  "fecha": "2026-11-10",
+  "version": "1.3.0",
+  "fecha": "2026-11-24",
   "novedades": [
     "Más seguridad: la primera vez, para crear tu contraseña te pedimos tu código de compra (el mismo que pusiste en Vercel).",
+    "Google Drive: si la lista de tu carpeta llega incompleta, ya no se borra ningún documento, y lo que subiste a mano nunca se borra por Drive.",
+    "Dos documentos con el mismo nombre (por ejemplo, dos INE) ya nunca se unen solos: si se parecen, la app te lo sugiere y tú decides.",
+    "PDF y fotos muy grandes: si no se pudo leer todo, el documento lo dice («Lectura parcial») y Tao te lo advierte al responder, también cuando no encuentra el dato.",
+    "Al cerrar sesión, ese celular deja de guardar tus avisos.",
     "TAOS funciona 100% con reglas gratis: se quitó la opción de IA de pago.",
-    "Google Drive: si la lista de tu carpeta llega incompleta, ya no se borra ningún documento; y lo que subiste a mano nunca se borra por Drive.",
-    "Dos documentos con el mismo nombre (por ejemplo dos INE) ya nunca se unen solos: si se parecen, la app te lo sugiere en el documento y tú decides si unirlos.",
-    "Detalles de pantalla: textos más claros, cifras con centavos, botones que dicen lo que hacen y gráficas más fáciles de leer.",
-    "PDF y fotos muy grandes: se revisa el tamaño antes de dibujarlos (ya no se puede pasar del tope) y, si no se pudo leer todo, el documento lo dice («Lectura parcial»)."
+    "El botón de abajo a la derecha ahora es solo un ícono, para que nunca tape lo que estás viendo.",
+    "Detalles de pantalla: textos más claros, cifras con centavos, botones que dicen lo que hacen y gráficas más fáciles de leer."
   ]
 }
