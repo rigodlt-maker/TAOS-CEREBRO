@@ -12,7 +12,7 @@ type Mensaje = { pregunta: string; respuesta: string; listo: boolean };
 const EJEMPLOS = ["¿Qué vence pronto?", "Pásame mi INE", "¿Qué documentos tengo?", "¿A qué teléfono llamo si choco?", "¿Qué me falta?"];
 
 // Chat de preguntas: busca en tus documentos y responde con el dato exacto y su origen
-export function Chat({ autoFocus = false, compacto = false }: { autoFocus?: boolean; compacto?: boolean }) {
+export function Chat({ autoFocus = false, compacto = false, escucharBuscador = false }: { autoFocus?: boolean; compacto?: boolean; escucharBuscador?: boolean }) {
   const [mensajes, setMensajes] = useState<Mensaje[]>([]);
   const [texto, setTexto] = useState("");
   const [ocupado, setOcupado] = useState(false);
@@ -50,6 +50,16 @@ export function Chat({ autoFocus = false, compacto = false }: { autoFocus?: bool
     }
     setOcupado(false);
   }
+
+  // Lo que escribiste en el buscador 🔍 y no era una pantalla se le pregunta a Tao (solo el chat de la hoja, para no repetir)
+  const enviarRef = useRef(enviar);
+  enviarRef.current = enviar;
+  useEffect(() => {
+    if (!escucharBuscador) return;
+    const preguntar = (e: Event) => enviarRef.current(String((e as CustomEvent).detail ?? ""));
+    window.addEventListener("taos-preguntar", preguntar);
+    return () => window.removeEventListener("taos-preguntar", preguntar);
+  }, [escucharBuscador]);
 
   return (
     <div className="grid gap-3">

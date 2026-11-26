@@ -8,6 +8,7 @@ import { Navegacion } from "@/components/navegacion";
 import { Encabezado } from "@/components/taos/encabezado";
 import { Recorrido, type Paso } from "@/components/taos/recorrido";
 import { Campana } from "@/components/taos/campana";
+import { BuscadorApp } from "@/components/buscador-app";
 import { BotonTao } from "@/components/taos/tao";
 import { obtenerRepo } from "@/lib/sesion";
 
@@ -19,6 +20,7 @@ const RECORRIDO: Paso[] = [
   { icono: "📤", titulo: "Sube tus papeles", texto: "Un PDF o una foto: la app lo lee, lo acomoda y guarda sus datos.", donde: "flotante" },
   { icono: "🎙️", titulo: "Pregunta como a un amigo", texto: "“Pásame mi INE”, “¿cuándo vence mi seguro?”. Te da el dato y de dónde sale.", donde: "tao" },
   { icono: "⏰", titulo: "Lo que vence", texto: "Lo que está por caducar, para renovarlo a tiempo.", donde: "/indice" },
+  { icono: "🔍", titulo: "¿No encuentras algo?", texto: "Toca la lupa y escribe lo que buscas: “vence”, “subir”, “Drive”… Te llevo directo a esa pantalla.", donde: "buscar" },
   { icono: "🔔", titulo: "Tus avisos", texto: "Aquí quedan los avisos que te manda la app, por si se te pasó alguno. El numerito te dice cuántos no has visto.", donde: "campana" },
   { icono: "⚙️", titulo: "Tu cuenta", texto: "Conecta Google Drive, revisa Mis documentos y activa los avisos.", donde: "/cuenta" },
 ];
@@ -34,9 +36,10 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
         nombre="Segundo Cerebro"
         derecha={
           <div className="flex items-center gap-2">
+            <BuscadorApp />
             <Campana ajustes="/cuenta" />
             <BotonTao>
-              <Chat />
+              <Chat escucharBuscador />
             </BotonTao>
           </div>
         }

@@ -2,6 +2,7 @@ import { ChevronRight, ClipboardCheck, FolderSync } from "lucide-react";
 import Link from "next/link";
 import { AvisosPush } from "@/components/avisos-push";
 import { TamanoLetra } from "@/components/taos/tamano-letra";
+import { BarraBuscar } from "@/components/taos/buscador";
 import { FormularioContrasena } from "@/components/contrasena";
 import { BotonAccion } from "@/components/formulario";
 import { Titulo } from "@/components/taos/encabezado";
@@ -14,6 +15,7 @@ export default async function Cuenta() {
   return (
     <div className="grid gap-4">
       <Titulo detalle={correo ?? undefined}>Cuenta</Titulo>
+      <BarraBuscar />
       <Link href="/mis-documentos" className="flex min-h-18 items-center gap-4 rounded-2xl border bg-card px-4 py-3 active:bg-muted">
         <ClipboardCheck className="size-6 shrink-0 text-primary" />
         <span className="min-w-0 flex-1">
@@ -30,7 +32,7 @@ export default async function Cuenta() {
         </span>
         <ChevronRight className="size-5 text-muted-foreground" />
       </Link>
-      <Card>
+      <Card id="releer" className="scroll-mt-24">
         <CardTitle className="mb-1">Volver a leer mis documentos</CardTitle>
         <CardDescription className="mb-4">
           Tao aprendió a leer mejor fechas, teléfonos y montos. Toca para mejorar las fichas de lo que ya subiste; lo que corregiste a mano no se toca.
@@ -39,7 +41,7 @@ export default async function Cuenta() {
           Volver a leer
         </BotonAccion>
       </Card>
-      <Card>
+      <Card id="avisos" className="scroll-mt-24">
         <CardTitle className="mb-1">Notificaciones en el celular</CardTitle>
         <CardDescription className="mb-4">
           Avisos cuando se lee un documento nuevo de tu Drive y cuando algo está por vencer. Actívalas en cada celular o computadora donde las quieras.
@@ -53,7 +55,7 @@ export default async function Cuenta() {
         </span>
         <span className="text-primary">›</span>
       </a>
-      <Card>
+      <Card id="pantalla" className="scroll-mt-24">
         <CardTitle className="mb-1">Pantalla</CardTitle>
         <CardDescription className="mb-4">Tamaño de la letra en este celular.</CardDescription>
         <TamanoLetra />
@@ -67,7 +69,7 @@ export default async function Cuenta() {
           </p>
         )}
       </Card>
-      <Card>
+      <Card id="contrasena" className="scroll-mt-24">
         <CardTitle className="mb-1">Contraseña</CardTitle>
         <CardDescription className="mb-4">Para entrar sin esperar el enlace por correo, también desde la app instalada.</CardDescription>
         <FormularioContrasena />
