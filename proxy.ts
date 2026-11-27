@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { correoPermitido, SUPABASE_LLAVE_PUBLICA, SUPABASE_URL, supabaseConfigurado } from "./lib/supabase/config";
 
 // /api/drive se protege con su propia clave (la usa el script de Google Drive, que no tiene sesión)
-const PUBLICAS = ["/login", "/auth", "/acceso-denegado", "/api/cron", "/api/drive"];
+const PUBLICAS = ["/login", "/crear-cuenta", "/auth", "/acceso-denegado", "/api/cron", "/api/drive"];
 
 // Renueva la sesión de Supabase en cada visita y deja pasar solo al correo permitido
 export async function proxy(req: NextRequest) {
