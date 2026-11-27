@@ -2,6 +2,9 @@ import { ArrowLeft } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { Copiar } from "@/components/copiar";
+import { MiClaveScript } from "@/components/mi-clave-script";
+import { esNube } from "@/lib/modo";
+import { generarMiScript } from "./acciones";
 import { BotonBorrarSueltos } from "@/components/borrar-sueltos";
 import { Titulo } from "@/components/taos/encabezado";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
@@ -24,7 +27,9 @@ const PASOS = [
 
 // Guía para conectar la carpeta de Google Drive (gratis, sin dar tu contraseña a nadie)
 export default async function ConectarDrive() {
-  const clave = claveDrive();
+  // Nube F1: en TAOS Nube cada persona crea su clave; en la versión propia, la clave sale de la llave secreta
+  const nube = esNube();
+  const clave = nube ? "nube" : claveDrive();
   const h = await headers();
   const url = urlDeLaApp() ?? `https://${h.get("host")}`;
   const repo = await obtenerRepo();
@@ -59,7 +64,7 @@ export default async function ConectarDrive() {
             </ol>
           </Card>
           <Card>
-            <Copiar texto={scriptDrive(url, clave)} />
+            {nube ? <MiClaveScript generar={generarMiScript} /> : <Copiar texto={scriptDrive(url, clave)} />}
           </Card>
           <Card>
             <CardTitle>Cómo se acomodan</CardTitle>

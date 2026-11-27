@@ -1,5 +1,10 @@
 import { revalidatePath } from "next/cache";
 import { mismaClave, repoDelDueno } from "@/lib/cron";
+import { claveDelEncabezado, duenoDeClave } from "@/lib/claves-script";
+import type { Repo } from "@/lib/datos/repo";
+import { repoSupabase } from "@/lib/datos/supabase";
+import { esNube } from "@/lib/modo";
+import { clienteAdmin } from "@/lib/supabase/admin";
 import { guardarContenido, sincronizarLista, type ArchivoDrive, type ContenidoDrive } from "@/lib/drive";
 import { claveDrive } from "@/lib/script-drive";
 
@@ -12,6 +17,13 @@ function autorizado(req: Request) {
   return !!clave && clave.length >= 12 && mismaClave(req.headers.get("authorization"), `Bearer ${clave}`);
 }
 
+// Nube F1: ¿de quién es este envío? Propia: la clave única → el dueño. Nube: la clave de cada persona → su user_id.
+async function repoDelEnvio(req: Request): Promise<Repo | null> {
+  if (!esNube()) return autorizado(req) ? repoDelDueno() : null;
+  const usuario = await duenoDeClave(clienteAdmin(), "drive", claveDelEncabezado(req));
+  return usuario ? repoSupabase(clienteAdmin(), usuario) : null;
+}
+
 const archivo = (a: Partial<ArchivoDrive> | undefined): ArchivoDrive | null =>
   a && typeof a.id === "string" && typeof a.nombre === "string" && !Number.isNaN(Date.parse(String(a.actualizado)))
     ? { id: a.id.slice(0, 200), nombre: a.nombre.slice(0, 300), mime: String(a.mime ?? "").slice(0, 120), actualizado: String(a.actualizado), url: String(a.url ?? "").slice(0, 500), carpeta: String(a.carpeta ?? "").slice(0, 300) }
@@ -19,16 +31,18 @@ const archivo = (a: Partial<ArchivoDrive> | undefined): ArchivoDrive | null =>
 
 // Prueba de conexión desde el script
 export async function GET(req: Request) {
-  if (!claveDrive()) return Response.json({ ok: false, error: "Falta SUPABASE_SECRET_KEY en Vercel" }, { status: 500 });
-  if (!autorizado(req)) return Response.json({ ok: false, error: "La clave no coincide" }, { status: 401 });
+  if (!esNube() && !claveDrive()) return Response.json({ ok: false, error: "Falta SUPABASE_SECRET_KEY en Vercel" }, { status: 500 });
+  const valida = esNube() ? !!(await repoDelEnvio(req).catch(() => null)) : autorizado(req);
+  if (!valida) return Response.json({ ok: false, error: "La clave no coincide" }, { status: 401 });
   return Response.json({ ok: true, mensaje: "Conexión lista" });
 }
 
 export async function POST(req: Request) {
-  if (!autorizado(req)) return Response.json({ ok: false, error: "La clave no coincide" }, { status: 401 });
+  const repoEnvio = await repoDelEnvio(req).catch(() => null);
+  if (!repoEnvio) return Response.json({ ok: false, error: "La clave no coincide" }, { status: 401 });
   const cuerpo = (await req.json().catch(() => null)) as { accion?: string; archivos?: Partial<ArchivoDrive>[]; total?: number; archivo?: Partial<ContenidoDrive> } | null;
   try {
-    const repo = await repoDelDueno();
+    const repo = repoEnvio;
     if (cuerpo?.accion === "lista") {
       const recibidos = Array.isArray(cuerpo.archivos) ? cuerpo.archivos : [];
       const archivos = recibidos.slice(0, 2000).map(archivo).filter((a): a is ArchivoDrive => !!a);
