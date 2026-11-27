@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { enviarCorreo, escapar, plantilla, urlDeLaApp } from "@/lib/correo";
-import { cronAutorizado, repoDelDueno } from "@/lib/cron";
+import { cronAutorizado, porCadaUsuario, type UsuarioCron } from "@/lib/cron";
+import type { Repo } from "@/lib/datos/repo";
 import { enCuanto, fechaLarga, hoyEnMexico } from "@/lib/fechas";
 import { avisosDeVencimiento, enviarPush } from "@/lib/push";
 import type { Documento } from "@/lib/tipos";
@@ -15,7 +16,12 @@ export async function GET(req: Request) {
   if (!cronAutorizado(req)) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const hoy = hoyEnMexico();
   const prueba = new URL(req.url).searchParams.has("prueba");
-  const repo = await repoDelDueno();
+  // Nube F1: lo mismo para cada usuario (en modo propia, solo el dueño); si a uno le falla, los demás siguen
+  const r = await porCadaUsuario((repo, u) => revisarA(repo, u, hoy, prueba));
+  return NextResponse.json({ ok: true, hoy, usuarios: r.usuarios, fallas: r.fallas, enviados: r.resultados.flat() });
+}
+
+async function revisarA(repo: Repo, u: UsuarioCron, hoy: string, prueba: boolean) {
   const docs = (await repo.documentos()).filter((d) => d.ficha?.fecha_vencimiento);
   const app = urlDeLaApp();
   const enlace = (d: Documento) => (app ? `<a href="${app}/documentos/${d.id}" style="color:#18181b">${escapar(d.nombre)}</a>` : escapar(d.nombre));
@@ -28,7 +34,7 @@ export async function GET(req: Request) {
 ${enlace(doc)}<br><span style="color:#52525b">Qué hacer: ${escapar(accionSugerida(doc))}</span>`,
     );
     const asunto = avisos.length === 1 ? `⏰ ${avisos[0].doc.tipo_documento ?? avisos[0].doc.nombre} ${avisos[0].dias <= 7 ? "vence en menos de una semana" : "vence en un mes"}` : `⏰ ${avisos.length} documentos están por vencer`;
-    await enviarCorreo(asunto, plantilla("Documentos por vencer", bloques, app));
+    await enviarCorreo(asunto, plantilla("Documentos por vencer", bloques, app), u.correo);
     // Notificación en el celular además del correo
     const push = await enviarPush(repo, avisosDeVencimiento(avisos, accionSugerida));
     enviados.push(`push: ${push.enviados}`);
@@ -43,7 +49,7 @@ ${enlace(doc)}<br><span style="color:#52525b">Qué hacer: ${escapar(accionSugeri
           .map((d) => `<li><strong>${fechaLarga(d.ficha!.fecha_vencimiento!)}</strong> (${enCuanto(d.ficha!.fecha_vencimiento!, hoy)}): ${enlace(d)} · ${escapar(accionSugerida(d))}</li>`)
           .join("")}</ul>`
       : "Nada de tus documentos vence en los próximos 60 días. 🎉";
-    await enviarCorreo("📅 Lo que vence en los próximos 60 días", plantilla("Resumen del mes", [bloque], app));
+    await enviarCorreo("📅 Lo que vence en los próximos 60 días", plantilla("Resumen del mes", [bloque], app), u.correo);
     enviados.push(`resumen: ${proximos.length}`);
   }
   // Los días 1 y 15: si te faltan documentos básicos, un recordatorio amable (sin repetirlo a diario)
@@ -58,5 +64,5 @@ ${enlace(doc)}<br><span style="color:#52525b">Qué hacer: ${escapar(accionSugeri
       enviados.push(`faltantes: ${faltan.length} (push ${push.enviados})`);
     }
   }
-  return NextResponse.json({ ok: true, hoy, enviados });
+  return enviados;
 }
