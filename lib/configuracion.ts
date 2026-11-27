@@ -13,6 +13,7 @@ export const PRUEBAS_MIGRACIONES: Record<string, [string, string]> = {
   "0002_drive.sql": ["documents", "drive_id"],
   "0003_push.sql": ["push_subscriptions", "id"],
   "0004_mis_documentos.sql": ["document_checklist", "clave"],
+  "0020_nube_duenos.sql": ["taos_migraciones", "nombre"],
 };
 
 export const faltaTabla = (e: { message: string; code?: string } | null) =>
