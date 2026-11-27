@@ -108,3 +108,20 @@ test("Nube F1 · con la llave secreta, cada consulta del repositorio lleva el us
   assert.deepEqual(sinDueno, []);
 });
 
+
+test("Nube F4 · todo método del repositorio que escribe en la base queda detrás del candado de la suscripción", async () => {
+  const { escribe } = await import("../lib/candado");
+  // Funciones de la base que solo leen (si se agrega una que escribe, debe ir detrás del candado)
+  const RPC_DE_LECTURA = ["rpc:buscar"];
+  const consultas: Consulta[] = [];
+  let actual = "";
+  const repo = repoSupabase(clienteFalso((c) => consultas.push(c), () => actual), B) as unknown as Record<string, unknown>;
+  for (const m of Object.keys(repo).filter((k) => typeof repo[k] === "function")) {
+    actual = m;
+    await (repo[m] as (...a: unknown[]) => Promise<unknown>)(...argumentos(m)).catch(() => {});
+  }
+  const escriben = [...new Set(consultas.filter((c) => c.enviada && (["insert", "upsert", "update", "delete"].includes(c.operacion) || (c.operacion === "rpc" && !RPC_DE_LECTURA.includes(c.tabla)))).map((c) => c.metodo))];
+  const sinCandado = escriben.filter((m) => !escribe(m) && !["guardarSuscripcionPush", "borrarSuscripcionPush"].includes(m));
+  assert.ok(escriben.length > 3, `solo ${escriben.length} métodos escriben`);
+  assert.deepEqual(sinCandado, []);
+});

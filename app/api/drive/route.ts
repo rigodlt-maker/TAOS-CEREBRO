@@ -4,6 +4,8 @@ import { claveDelEncabezado, duenoDeClave } from "@/lib/claves-script";
 import type { Repo } from "@/lib/datos/repo";
 import { repoSupabase } from "@/lib/datos/supabase";
 import { esNube } from "@/lib/modo";
+import { puedeEscribir } from "@/lib/suscripcion";
+import { suscripcionDe } from "@/lib/suscripcion-servidor";
 import { clienteAdmin } from "@/lib/supabase/admin";
 import { guardarContenido, sincronizarLista, type ArchivoDrive, type ContenidoDrive } from "@/lib/drive";
 import { claveDrive } from "@/lib/script-drive";
@@ -18,10 +20,15 @@ function autorizado(req: Request) {
 }
 
 // Nube F1: ¿de quién es este envío? Propia: la clave única → el dueño. Nube: la clave de cada persona → su user_id.
+class SinSuscripcion extends Error {}
+
 async function repoDelEnvio(req: Request): Promise<Repo | null> {
   if (!esNube()) return autorizado(req) ? repoDelDueno() : null;
   const usuario = await duenoDeClave(clienteAdmin(), "drive", claveDelEncabezado(req));
-  return usuario ? repoSupabase(clienteAdmin(), usuario) : null;
+  if (!usuario) return null;
+  // Nube F4: sin suscripción vigente el script ya no registra nada (solo lectura); contesta 402 para que no reintente
+  if (!puedeEscribir(await suscripcionDe(clienteAdmin(), usuario))) throw new SinSuscripcion();
+  return repoSupabase(clienteAdmin(), usuario);
 }
 
 const archivo = (a: Partial<ArchivoDrive> | undefined): ArchivoDrive | null =>
@@ -32,13 +39,19 @@ const archivo = (a: Partial<ArchivoDrive> | undefined): ArchivoDrive | null =>
 // Prueba de conexión desde el script
 export async function GET(req: Request) {
   if (!esNube() && !claveDrive()) return Response.json({ ok: false, error: "Falta SUPABASE_SECRET_KEY en Vercel" }, { status: 500 });
-  const valida = esNube() ? !!(await repoDelEnvio(req).catch(() => null)) : autorizado(req);
+  // La clave sirve aunque la suscripción no esté activa (eso se avisa al mandar datos)
+  const valida = esNube() ? !!(await repoDelEnvio(req).catch((e) => (e instanceof SinSuscripcion ? true : null))) : autorizado(req);
   if (!valida) return Response.json({ ok: false, error: "La clave no coincide" }, { status: 401 });
   return Response.json({ ok: true, mensaje: "Conexión lista" });
 }
 
 export async function POST(req: Request) {
-  const repoEnvio = await repoDelEnvio(req).catch(() => null);
+  let repoEnvio: Repo | null = null;
+  try {
+    repoEnvio = await repoDelEnvio(req);
+  } catch (e) {
+    if (e instanceof SinSuscripcion) return Response.json({ ok: false, error: "Tu suscripción de TAOS no está activa: por ahora no se registra nada nuevo." }, { status: 402 });
+  }
   if (!repoEnvio) return Response.json({ ok: false, error: "La clave no coincide" }, { status: 401 });
   const cuerpo = (await req.json().catch(() => null)) as { accion?: string; archivos?: Partial<ArchivoDrive>[]; total?: number; archivo?: Partial<ContenidoDrive> } | null;
   try {

@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { AvisoSuscripcion } from "@/components/aviso-suscripcion";
 import { redirect } from "next/navigation";
 import { estadoBD } from "@/lib/configuracion";
 import { Actualizacion } from "@/components/taos/actualizacion";
@@ -56,6 +57,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
         </Link>
       )}
       <Actualizacion repo="taos-cerebro" />
+      <AvisoSuscripcion />
       <main>{children}</main>
       <Suspense>
         <Recorrido pasos={RECORRIDO} />
