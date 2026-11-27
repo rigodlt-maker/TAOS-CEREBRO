@@ -1,4 +1,5 @@
 import { ChevronRight, ClipboardCheck, FolderSync } from "lucide-react";
+import { MisDatos } from "@/components/mis-datos";
 import Link from "next/link";
 import { AvisosPush } from "@/components/avisos-push";
 import { TamanoLetra } from "@/components/taos/tamano-letra";
@@ -69,6 +70,7 @@ export default async function Cuenta() {
           </p>
         )}
       </Card>
+      <MisDatos />
       <Card id="contrasena" className="scroll-mt-24">
         <CardTitle className="mb-1">Contraseña</CardTitle>
         <CardDescription className="mb-4">Para entrar sin esperar el enlace por correo, también desde la app instalada.</CardDescription>
