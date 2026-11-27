@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
+import { renovarPushSiHaceFalta } from "@/lib/renovar-push";
 
 // En la pantalla de entrada no hay sesión: se le pide al celular borrar lo que pudiera tener algo tuyo (S15).
 // Depende de la ruta, así también funciona cuando llegas a la entrada sin recargar la página.
@@ -11,6 +12,8 @@ export function RegistrarSW() {
   const ruta = usePathname();
   useEffect(() => {
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+    // Si se cambió la llave secreta, las notificaciones de este celular se renuevan solas
+    renovarPushSiHaceFalta().catch(() => {});
   }, []);
   useEffect(() => {
     if (!("serviceWorker" in navigator) || !ruta) return;
